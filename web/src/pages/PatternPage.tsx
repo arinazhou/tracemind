@@ -82,7 +82,7 @@ export function PatternPage({ id }: { id: string }) {
             <tbody>{p.complexity.map(([op, t, s, why]) => <tr key={op}><td>{op}</td><td>{t}</td><td>{s}</td><td>{why}</td></tr>)}</tbody>
           </table>
         </div>
-        <p className="faint" style={{ fontSize: 13 }}>Paste your own solution into the <a className="lc-link" href="#/lab">Code Lab</a> (or a problem's My solution tab) to get this analysis for your code.</p>
+        <p className="faint" style={{ fontSize: 13 }}>Paste your own solution into the <a className="lc-link" href="#/visualize">Code Visualizer</a> (or a problem's My solution tab) to get this analysis for your code.</p>
       </section>
 
       <section className="lesson-section">

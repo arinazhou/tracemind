@@ -18,7 +18,7 @@ export function ExampleDemo({ example, open, onToggle }: Props) {
         <span className="demo-play">{open ? '▾' : '▶'}</span>
         <span><b>Worked example:</b> {example.num}. {title} <span className="faint">· {example.time}</span></span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
-          <a className="lc-link" href="#/lab" onClick={(e) => { e.stopPropagation(); openInLab(example) }}>edit in Code Lab →</a>
+          <a className="lc-link" href="#/visualize" onClick={(e) => { e.stopPropagation(); openInLab(example) }}>edit in Visualizer →</a>
           <a className="lc-link" href={`#/p/${example.num}`} onClick={(e) => e.stopPropagation()}>problem page →</a>
         </span>
       </button>

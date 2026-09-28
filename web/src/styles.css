@@ -465,3 +465,8 @@ details.table-view td, details.table-view th { padding: 2px 10px; text-align: ri
 .nav-top { display: grid; gap: 2px; }
 .note-code { font-family: var(--mono); font-size: .88em; background: var(--active-bg); color: var(--active-fg); padding: 1px 6px; border-radius: 6px; font-variant-ligatures: none; }
 .tracker-table .lc-link { white-space: nowrap; }
+.fresh-out { background: var(--match-bg); color: inherit; border-radius: 3px; }
+.mode-switch { display: inline-flex; gap: 4px; padding: 3px; background: var(--surface-2); border-radius: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.mode-switch button { border: none; background: none; border-radius: 8px; padding: 5px 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.mode-switch button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(60,45,30,.08); }
+.stdin { width: 100%; min-height: 56px; font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface-2); resize: vertical; }

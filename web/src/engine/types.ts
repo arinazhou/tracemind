@@ -12,6 +12,7 @@ export type Panel =
   | ListPanel
   | MapPanel
   | VarsPanel
+  | TextPanel
 
 interface PanelBase {
   title: string
@@ -67,6 +68,13 @@ export interface MapPanel extends PanelBase {
   kind: 'map'
   entries: [string | number, string | number][]
   highlightKey?: string | number
+}
+
+export interface TextPanel extends PanelBase {
+  kind: 'text'
+  text: string
+  /** Characters at the end that were produced by this step (highlighted). */
+  fresh?: number
 }
 
 export interface VarsPanel extends PanelBase {

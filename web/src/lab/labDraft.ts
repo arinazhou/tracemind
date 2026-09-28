@@ -1,9 +1,9 @@
-// The Code Lab's working copy, kept in the browser so it survives reloads.
+// The Code Visualizer's working copy, kept in the browser so it survives reloads.
 import type { WorkedExample } from '../learn/types'
 
 const KEY = 'tracemind:lab:v1'
 
-export interface LabDraft { code: string; args: string; driver: string }
+export interface LabDraft { code: string; args: string; driver: string; stdin?: string }
 
 export function loadDraft(): LabDraft | null {
   try {

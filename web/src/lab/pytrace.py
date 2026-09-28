@@ -12,9 +12,11 @@ import io
 import json
 import sys
 import traceback
+import types
 from collections import OrderedDict, deque
 
 MAX_STEPS = 1500
+MAX_OUTPUT = 20000
 MAX_ITEMS = 60
 FILE = "<solution>"
 
@@ -120,6 +122,11 @@ class Snapshot:
             except TypeError:
                 items = list(v)
             return {"t": "set", "v": [self.value(x, 2) for x in items[:MAX_ITEMS]]}
+        fields = getattr(v, "__dict__", None)
+        if isinstance(fields, dict) and type(v).__module__ in ("__main__", "__solution__"):
+            # the user's own objects: show their fields, not <Stack object at 0x…>
+            return {"t": "dict", "cls": type(v).__name__,
+                    "v": [[{"t": "prim", "r": k}, self.value(x, depth + 1)] for k, x in list(fields.items())[:MAX_ITEMS]]}
         return {"t": "prim", "r": _short(v)}
 
     def collect(self, frames_locals):
@@ -225,9 +232,14 @@ def _frames(frame):
     return list(reversed(out))
 
 
-def _visible_locals(frame):
+def _visible_locals(frame, hidden=frozenset()):
     loc = {}
+    top_level = frame.f_code.co_name == "<module>"
     for k, v in frame.f_locals.items():
+        if top_level and k in hidden:
+            continue                    # prelude helpers (tree, linked, typing names, ...)
+        if isinstance(v, types.ModuleType):
+            continue
         if k.startswith("__") or callable(v) and not isinstance(v, (list, dict, set, deque)):
             continue
         if type(v).__module__ == "builtins" and isinstance(v, type):
@@ -240,23 +252,29 @@ def _visible_locals(frame):
     return loc
 
 
-def _snapshot(frames):
+def _snapshot(frames, hidden=frozenset()):
     snap = Snapshot()
-    locs = [_visible_locals(f) for f in frames]
+    locs = [_visible_locals(f, hidden) for f in frames]
     snap.collect(locs)
     stack = []
     for f, loc in zip(frames, locs):
         stack.append({
-            "fn": f.f_code.co_name,
+            "fn": "main" if f.f_code.co_name == "<module>" else f.f_code.co_name,
             "vars": OrderedDict((k, snap.value(v)) for k, v in loc.items()),
         })
     refs = {str(k): list(v) for k, v in snap.owner.items()}
     return stack, {str(k): v for k, v in snap.structs.items()}, refs
 
 
-def run(code, call, driver=False):
-    """Execute `code`, then trace `call` (an expression, or statements when driver=True)."""
-    ns = {"__name__": "__solution__"}
+def run(code, call="", driver=False, script=False, stdin=""):
+    """Trace a solution.
+
+    script=True: run the whole file as a program (top-level code included).
+    Otherwise execute the definitions, then trace `call` (an expression, or
+    statements when driver=True).
+    """
+    ns = {"__name__": "__main__" if script else "__solution__"}
+    hidden = frozenset()
     out = io.StringIO()
     result = {"ok": True, "steps": [], "stdout": "", "truncated": False}
     steps = result["steps"]
@@ -267,15 +285,20 @@ def run(code, call, driver=False):
         if len(steps) >= MAX_STEPS:
             result["truncated"] = True
             raise _Stop()
-        stack, structs, refs = _snapshot(_frames(frame))
-        step = {"line": line, "event": event, "stack": stack, "structs": structs, "refs": refs}
+        stack, structs, refs = _snapshot(_frames(frame), hidden)
+        step = {"line": line, "event": event, "stack": stack, "structs": structs, "refs": refs,
+                "out": min(len(out.getvalue()), MAX_OUTPUT)}
         if extra:
             step.update(extra)
         steps.append(step)
 
     def tracer(frame, event, arg):
-        # skip library code, and generator/lambda internals (<genexpr>, <lambda>)
-        if frame.f_code.co_filename != FILE or frame.f_code.co_name.startswith("<"):
+        # skip library code, and generator/lambda internals (<genexpr>, <lambda>);
+        # the file's own top level (<module>) is traced in script mode
+        name = frame.f_code.co_name
+        if frame.f_code.co_filename != FILE or (name.startswith("<") and name != "<module>"):
+            return None
+        if name != "<module>" and not frame.f_code.co_flags & 0x01:   # CO_OPTIMIZED unset: a class body
             return None
         key = id(frame)
         if event == "call":
@@ -297,16 +320,24 @@ def run(code, call, driver=False):
 
     try:
         exec(compile(PRELUDE, "<prelude>", "exec"), ns)
-        exec(compile(code, FILE, "exec"), ns)
+        hidden = frozenset(ns)
+        compiled = compile(code, FILE, "exec")
+        if not script:
+            exec(compiled, ns)
     except SyntaxError as e:
         return {"ok": False, "error": f"Syntax error on line {e.lineno}: {e.msg}"}
     except Exception as e:  # noqa: BLE001 - report anything the definitions raise
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
+    real_stdin = sys.stdin
+    sys.stdin = io.StringIO(stdin)
     sys.stdout = out
     sys.settrace(tracer)
     try:
-        if driver:
+        if script:
+            exec(compiled, ns)
+            value = None
+        elif driver:
             lines = call.strip().splitlines()
             body, last = "\n".join(lines[:-1]), lines[-1] if lines else "None"
             exec(compile(body, "<call>", "exec"), ns)
@@ -324,11 +355,15 @@ def run(code, call, driver=False):
         tb = [f for f in traceback.extract_tb(e.__traceback__) if f.filename == FILE]
         where = f" (line {tb[-1].lineno})" if tb else ""
         result["ok"] = False
-        result["error"] = f"{type(e).__name__}: {e}{where}"
+        if isinstance(e, EOFError):
+            result["error"] = f"input() ran out of lines{where}. Type the program's input in the stdin box, one line per input() call."
+        else:
+            result["error"] = f"{type(e).__name__}: {e}{where}"
     finally:
         sys.settrace(None)
         sys.stdout = real_stdout
-    result["stdout"] = out.getvalue()[:4000]
+        sys.stdin = real_stdin
+    result["stdout"] = out.getvalue()[:MAX_OUTPUT]
     return result
 
 
@@ -359,12 +394,14 @@ def build_call(code, args):
 
 
 def trace_json(payload):
-    """Browser entry point: payload = {"code", "args"} or {"code", "driver"}."""
+    """Browser entry point: payload = {"code", "script": true, "stdin"} | {"code", "args"} | {"code", "driver"}."""
     p = json.loads(payload)
     try:
         compile(p["code"], FILE, "exec")
     except SyntaxError as e:
         return json.dumps({"ok": False, "error": f"Syntax error on line {e.lineno}: {e.msg}"})
+    if p.get("script"):
+        return json.dumps(run(p["code"], script=True, stdin=p.get("stdin", "")))
     if p.get("driver"):
         return json.dumps(run(p["code"], p["driver"], driver=True))
     call = build_call(p["code"], p.get("args", ""))

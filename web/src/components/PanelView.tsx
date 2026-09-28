@@ -1,4 +1,4 @@
-import type { ArrayPanel, GraphPanel, GridPanel, ListPanel, MapPanel, Panel, VarsPanel } from '../engine/types'
+import type { ArrayPanel, GraphPanel, GridPanel, ListPanel, MapPanel, Panel, TextPanel, VarsPanel } from '../engine/types'
 
 const tc = (tone?: string) => (tone ? ` t-${tone}` : '')
 
@@ -15,6 +15,7 @@ export function PanelView({ panel, prev }: { panel: Panel; prev?: Panel }) {
       {panel.kind === 'list' && <ListView p={panel} />}
       {panel.kind === 'map' && <MapView p={panel} />}
       {panel.kind === 'vars' && <VarsView p={panel} prev={prev?.kind === 'vars' ? prev : undefined} />}
+      {panel.kind === 'text' && <TextView p={panel} />}
     </div>
   )
 }
@@ -90,12 +91,18 @@ function MapView({ p }: { p: MapPanel }) {
       {p.entries.map(([k, v]) => {
         const hl = k === p.highlightKey || String(k) === String(p.highlightKey)
         return [
-          <span key={`k${k}`} className={`k${hl ? ' hl' : ''}`}>{JSON.stringify(k)}</span>,
+          <span key={`k${k}`} className={`k${hl ? ' hl' : ''}`}>{typeof k === 'string' && k.startsWith('.') ? k : JSON.stringify(k)}</span>,
           <span key={`v${k}`} className={hl ? 'hl' : ''}>{String(v)}</span>,
         ]
       })}
     </div>
   )
+}
+
+function TextView({ p }: { p: TextPanel }) {
+  if (!p.text) return <span className="empty">nothing printed yet</span>
+  const cut = p.text.length - (p.fresh ?? 0)
+  return <pre className="stdout" style={{ margin: 0 }}>{p.text.slice(0, cut)}<mark className="fresh-out">{p.text.slice(cut)}</mark></pre>
 }
 
 function VarsView({ p, prev }: { p: VarsPanel; prev?: VarsPanel }) {

@@ -55,7 +55,7 @@ export function App() {
   let page = <Home />
   if (kind === 'learn' && arg) page = <PatternPage id={arg} />
   if (kind === 'ds' && arg) page = <DSPage id={arg} />
-  if (kind === 'lab') page = <LabPage />
+  if (kind === 'lab' || kind === 'visualize') page = <LabPage />
   if (kind === 'tracker') page = <TrackerPage />
   if (kind === 'p' && arg) page = <ProblemPage num={+arg} tab={params.get('tab')} step={Number(params.get('step') ?? 1) - 1} />
 
@@ -73,7 +73,7 @@ export function App() {
         </a>
         <div className="nav-top">
           <a href="#/" className={`nav-item${!kind ? ' on' : ''}`}>Home</a>
-          <a href="#/lab" className={`nav-item${kind === 'lab' ? ' on' : ''}`}>▶ Code Lab</a>
+          <a href="#/visualize" className={`nav-item${kind === 'lab' || kind === 'visualize' ? ' on' : ''}`}>▶ Visualize my code</a>
           <a href="#/tracker" className={`nav-item${kind === 'tracker' ? ' on' : ''}`}>✓ Tracker</a>
         </div>
 

@@ -24,10 +24,14 @@ trees, heaps, hash tables, disjoint sets and graphs: the Python toolkit,
 operation costs, the key CS 225 ideas, links to the CS 225 lecture slides,
 and which interview patterns use each one.
 
-**Code Lab.** Paste any Python solution plus arguments and it runs line by
-line in your browser: variables, arrays with index pointers, dicts, stacks,
-queues, grids, trees and linked lists (pointer variables like `slow`, `node`
-drawn onto the structure), and step notes like "`while left < right` is True".
+**Code Visualizer: if it runs, it visualizes.** Paste any Python (a plain
+script, your own classes, or a LeetCode solution) and step through it line by
+line: every variable, arrays with index pointers, dicts, sets, stacks, queues,
+grids, trees and linked lists (pointer variables like `slow`, `node` drawn onto
+the structure), your own objects by their fields, the call stack, and `print`
+output as it appears. Three ways to run: the whole file as a script (with a
+stdin box for `input()`), call a function with arguments, or driver code.
+Notes read like a debugger: "`while left < right` is True", "`pal.append('bob')`".
 ⚡ Big-O runs a static analyzer that explains time/space per line and admits
 when it is guessing.
 
@@ -40,7 +44,7 @@ LeetCode link for every problem.
 |---|---|---|
 | Setup | none | Python 3.11+ and Node 20+ |
 | Progress | this browser; **Back up / Restore** in the sidebar | SQLite on your machine (browser cache when offline) |
-| Code Lab & Big-O | Python via Pyodide (WebAssembly) in a Web Worker | same |
+| Visualizer & Big-O | Python via Pyodide (WebAssembly) in a Web Worker | same |
 
 ```bash
 ./dev.sh      # API on :8000 + web app on http://localhost:5173

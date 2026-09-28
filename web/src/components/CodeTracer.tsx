@@ -12,7 +12,10 @@ interface Props {
   onCodeChange?: (code: string) => void
   args?: string
   driver?: string
+  stdin?: string
   autoRun?: boolean
+  /** Remember edits to args/driver/stdin/mode (the Code Visualizer keeps a draft). */
+  onRunInputs?: (inputs: { args: string; driver: string; stdin: string }) => void
   showAnalyze?: boolean
 }
 
@@ -26,12 +29,33 @@ export function signature(code: string) {
   return { call: cls ? `${cls[1]}().${fn[1]}` : fn[1], params: params.join(', ') }
 }
 
-export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver: initialDriver, autoRun, showAnalyze = true }: Props) {
+type Mode = 'script' | 'call' | 'driver'
+
+/** A program with its own top-level statements (loops, prints, calls) runs as a script. */
+export function looksLikeScript(code: string) {
+  if (/^class\s+Solution\b/m.test(code)) return false
+  let inDoc = false
+  for (const line of code.split('\n')) {
+    const quotes = (line.match(/"""|'''/g) ?? []).length
+    if (inDoc || quotes) { if (quotes % 2) inDoc = !inDoc; continue }
+    if (/^\s|^$|^#|^(def|class|import|from|async def|@)\b|^[)\]}]/.test(line)) continue
+    return true
+  }
+  return false
+}
+
+export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver: initialDriver, stdin: initialStdin = '', autoRun, showAnalyze = true, onRunInputs }: Props) {
   const [args, setArgs] = useState(initialArgs)
   const [driver, setDriver] = useState(initialDriver ?? '')
-  const [useDriver, setUseDriver] = useState(!!initialDriver)
+  const [stdin, setStdin] = useState(initialStdin)
+  const detected: Mode = initialDriver ? 'driver' : looksLikeScript(code) ? 'script' : 'call'
+  const [mode, setMode] = useState<Mode>(detected)
+  const [touchedMode, setTouchedMode] = useState(false)
+  // follow the code until the user picks a mode by hand
+  useEffect(() => { if (!touchedMode && !initialDriver) setMode(looksLikeScript(code) ? 'script' : 'call') }, [code]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onRunInputs?.({ args, driver, stdin }) }, [args, driver, stdin]) // eslint-disable-line react-hooks/exhaustive-deps
   const [steps, setSteps] = useState<Step[] | null>(null)
-  const [traced, setTraced] = useState<{ code: string; result: TraceResult } | null>(null)
+  const [traced, setTraced] = useState<{ code: string; result: TraceResult; script: boolean } | null>(null)
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [busy, setBusy] = useState<'' | 'trace' | 'analyze'>('')
   const [error, setError] = useState('')
@@ -42,7 +66,7 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
     setBusy('trace')
     setError('')
     try {
-      const payload = useDriver ? { code, driver } : { code, args }
+      const payload = mode === 'script' ? { code, script: true, stdin } : mode === 'driver' ? { code, driver } : { code, args }
       const result: TraceResult = JSON.parse(await callPython('trace_json', JSON.stringify(payload)))
       if (!result.steps?.length) {
         setSteps(null)
@@ -50,7 +74,7 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
         setError(result.error ?? 'Nothing ran. Check the arguments.')
       } else {
         setSteps(toSteps(result, code))
-        setTraced({ code, result })
+        setTraced({ code, result, script: mode === 'script' })
         if (!result.ok) setError(result.error ?? 'Error')
       }
     } catch (e) {
@@ -97,8 +121,18 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
             placeholder={'class Solution:\n    def solve(self, nums):\n        ...'}
           />
         )}
+        <div className="mode-switch" role="tablist" aria-label="How to run">
+          {([['script', 'Run as a script'], ['call', 'Call a function'], ['driver', 'Driver code']] as [Mode, string][]).map(([m, label]) => (
+            <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); setTouchedMode(true) }}>{label}</button>
+          ))}
+        </div>
         <div className="call-row">
-          {useDriver ? (
+          {mode === 'script' ? (
+            <div style={{ flex: 1 }}>
+              <div className="faint" style={{ fontSize: 12.5, marginBottom: 6 }}>Runs the whole file, top to bottom, like <code>python file.py</code>. Optional input for <code>input()</code>, one line per call:</div>
+              <textarea className="stdin" value={stdin} onChange={(e) => setStdin(e.target.value)} spellCheck={false} placeholder="stdin (optional)" />
+            </div>
+          ) : mode === 'driver' ? (
             <textarea className="driver" value={driver} onChange={(e) => setDriver(e.target.value)} spellCheck={false}
               placeholder={'s = MinStack()\ns.push(3)\ns.getMin()'} />
           ) : (
@@ -117,14 +151,10 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
           {showAnalyze && (
             <button className="btn" onClick={analyze} disabled={!!busy || !code.trim()}>{busy === 'analyze' ? 'Analyzing…' : '⚡ Big-O'}</button>
           )}
-          <label className="faint" style={{ fontSize: 12.5, display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input type="checkbox" checked={useDriver} onChange={(e) => setUseDriver(e.target.checked)} />
-            driver code (for design problems: several calls)
-          </label>
           {busy && <span className="faint" style={{ fontSize: 12.5 }}>The first run downloads Python (a few seconds)…</span>}
         </div>
         <p className="faint tracer-help">
-          Arguments are Python: <code>[2, 7, 11, 15], 9</code>. Trees: <code>tree([3, 9, 20, None, None, 15, 7])</code>. Linked
+          Any Python that runs will visualize: scripts, functions, classes, recursion. In function mode, arguments are Python: <code>[2, 7, 11, 15], 9</code>. Trees: <code>tree([3, 9, 20, None, None, 15, 7])</code>. Linked
           lists: <code>linked([1, 2, 3])</code> (add <code>pos=1</code> for a cycle). Everything runs in your browser.
         </p>
         {error && <p className="error">{error}</p>}
@@ -140,7 +170,9 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
               <div className="card panel">
                 <div className="panel-title">Result</div>
                 <div className="vars">
-                  <span className="var"><span className="k">returned = </span>{result?.ok ? showResult(result) : '—'}</span>
+                  {traced.script
+                    ? <span className="var">{result?.ok && !result.truncated ? '✓ program finished' : '✗ stopped early'}</span>
+                    : <span className="var"><span className="k">returned = </span>{result?.ok ? showResult(result) : '—'}</span>}
                   <span className="var"><span className="k">steps = </span>{steps.length}{result?.truncated ? '+' : ''}</span>
                 </div>
                 {result?.truncated && <p className="error" style={{ marginBottom: 0 }}>Stopped after {steps.length} steps. Try a smaller input (or check for an infinite loop).</p>}

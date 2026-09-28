@@ -23,7 +23,7 @@ export function Home() {
       <h1 className="page-title">See your code think.</h1>
       <p className="muted" style={{ margin: '6px 0 0', maxWidth: 720 }}>
         Learn the 20 interview patterns with templates and animations, look up the data structures underneath them the
-        CS 225 way, and paste your own Python to watch it run and get its Big-O.
+        CS 225 way, and paste any Python you write to watch it run line by line and get its Big-O.
       </p>
 
       <div className="hero">
@@ -47,9 +47,9 @@ export function Home() {
           </a>
         </div>
         <div className="card hero-card tools-card">
-          <a href="#/lab" className="tool">
+          <a href="#/visualize" className="tool">
             <span className="tool-icon">▶</span>
-            <span><b>Code Lab</b><span className="muted">Paste a solution: step-by-step animation + Big-O analysis.</span></span>
+            <span><b>Code Visualizer</b><span className="muted">If it runs, it visualizes: any Python, line by line, plus Big-O.</span></span>
           </a>
           <a href="#/tracker" className="tool">
             <span className="tool-icon">✓</span>

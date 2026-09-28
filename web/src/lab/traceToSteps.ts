@@ -8,7 +8,7 @@ export type PyVal =
   | { t: 'ref'; id: number }
   | { t: 'list' | 'tuple' | 'set' | 'deque'; v: PyVal[] }
   | { t: 'grid'; v: string[][] }
-  | { t: 'dict'; v: [PyVal, PyVal][] }
+  | { t: 'dict'; v: [PyVal, PyVal][]; cls?: string }
 
 type Struct =
   | { kind: 'tree'; nodes: { id: number; v: string; l: number | null; r: number | null }[] }
@@ -25,6 +25,8 @@ export interface RawStep {
   callee?: string
   ret?: PyVal
   error?: string
+  /** Length of stdout after this step. */
+  out?: number
 }
 
 export interface TraceResult {
@@ -48,7 +50,9 @@ export function show(v: PyVal | undefined, depth = 0): string {
     case 'prim': return v.r
     case 'ref': return '•'
     case 'grid': return `[${v.v.length}×${v.v[0]?.length ?? 0} grid]`
-    case 'dict': return depth > 0 ? `{…${v.v.length}}` : `{${v.v.map(([k, x]) => `${show(k, 1)}: ${show(x, 1)}`).join(', ')}}`
+    case 'dict':
+      if (v.cls) return depth > 0 ? `${v.cls}(…)` : `${v.cls}(${v.v.map(([k, x]) => `${show(k, 1)}=${show(x, 1)}`).join(', ')})`
+      return depth > 0 ? `{…${v.v.length}}` : `{${v.v.map(([k, x]) => `${show(k, 1)}: ${show(x, 1)}`).join(', ')}}`
     case 'tuple': return `(${v.v.map((x) => show(x, depth + 1)).join(', ')})`
     case 'set': return `{${v.v.map((x) => show(x, depth + 1)).join(', ')}}`
     default: return depth > 1 ? `[…${v.v.length}]` : `[${v.v.map((x) => show(x, depth + 1)).join(', ')}]`
@@ -76,6 +80,35 @@ export function showResult(t: TraceResult): string {
     return `tree([${out.join(', ')}])`
   }
   return '<node>'
+}
+
+/** "pal.append('bob')", "seen[2] = 0", "nums[3]: 1 → 4" instead of "changed". */
+function describeChange(k: string, was: PyVal, now: PyVal): string {
+  const listy = (x: PyVal): x is Extract<PyVal, { v: PyVal[] }> => x.t === 'list' || x.t === 'deque' || x.t === 'tuple' || x.t === 'set'
+  if (listy(was) && listy(now)) {
+    const a = was.v.map((x) => show(x, 1))
+    const b = now.v.map((x) => show(x, 1))
+    if (b.length === a.length + 1 && a.every((x, i) => x === b[i])) return `${k}.${now.t === 'set' ? 'add' : 'append'}(${b[b.length - 1]})`
+    if (b.length === a.length + 1 && a.every((x, i) => x === b[i + 1])) return `${k}.appendleft(${b[0]})`
+    if (b.length === a.length - 1 && b.every((x, i) => x === a[i])) return `${k}.pop() → ${a[a.length - 1]}`
+    if (b.length === a.length - 1 && b.every((x, i) => x === a[i + 1])) return `${k}.popleft() → ${a[0]}`
+    if (a.length === b.length && now.t !== 'set') {
+      const diff = b.map((x, i) => (x !== a[i] ? i : -1)).filter((i) => i >= 0)
+      if (diff.length <= 2) return diff.map((i) => `${k}[${i}]: ${a[i]} → ${b[i]}`).join(', ')
+    }
+  }
+  if (was.t === 'dict' && now.t === 'dict') {
+    const old = new Map(was.v.map(([x, y]) => [show(x, 1), show(y, 1)]))
+    const changed = now.v.filter(([x, y]) => old.get(show(x, 1)) !== show(y, 1))
+    const target = (key: string) => (now.cls ? `${k}.${key}` : `${k}[${key}]`)
+    if (changed.length && changed.length <= 2) return changed.map(([x, y]) => `${target(show(x, 1))} = ${show(y, 1)}`).join(', ')
+  }
+  if (was.t === 'grid' && now.t === 'grid') {
+    const cells: string[] = []
+    now.v.forEach((row, r) => row.forEach((x, c) => { if (was.v[r]?.[c] !== x) cells.push(`${k}[${r}][${c}] = ${x}`) }))
+    if (cells.length && cells.length <= 2) return cells.join(', ')
+  }
+  return `${k} changed`
 }
 
 const same = (a?: PyVal, b?: PyVal) => JSON.stringify(a) === JSON.stringify(b)
@@ -107,7 +140,14 @@ export function toSteps(trace: TraceResult, code = ''): Step[] {
     lastVars.set(key, top.vars)
     // where this frame goes next tells us how a condition evaluated
     const next = raw.slice(i + 1).find((n) => n.stack.length === s.stack.length && n.event !== 'call')
-    return { line: s.line, note: note(s, top, prev, src, next?.line), panels: panels(s, top, prev) }
+    const out = (trace.stdout ?? '').slice(0, s.out ?? 0)
+    const before = i > 0 ? (raw[i - 1].out ?? 0) : 0
+    const printed = out.slice(before)
+    const ps = panels(s, top, prev)
+    if (trace.stdout) ps.push({ kind: 'text', title: 'output (print)', text: out, fresh: printed.length })
+    let n = note(s, top, prev, src, next?.line)
+    if (printed) n = `printed ${JSON.stringify(printed.replace(/\n$/, '')).slice(0, 80)}. ${n}`
+    return { line: s.line, note: n, panels: ps }
   })
 }
 
@@ -133,9 +173,9 @@ function note(s: RawStep, top: Frame, prev: Record<string, PyVal> | undefined, s
     if (!prev || !(k in prev)) changes.push(v.t === 'prim' || v.t === 'ref' ? `${k} = ${show(v)}` : `new ${k}`)
     else if (v.t === 'prim') changes.push(`${k}: ${show(prev[k])} → ${v.r}`)
     else if (v.t === 'ref') changes.push(`${k} moved`)
-    else changes.push(`${k} changed`)
+    else changes.push(describeChange(k, prev[k], v))
   }
-  const head = s.event === 'return' ? `${top.fn} returns ${show(s.ret)}` : ''
+  const head = s.event === 'return' && top.fn !== 'main' ? `${top.fn} returns ${show(s.ret)}` : ''
   const body = changes.slice(0, 5).join(' · ') + (changes.length > 5 ? ' …' : '')
   const cond = s.event === 'line' ? branch(src, s.line, nextLine) : null
   const text = (src[s.line - 1] ?? '').trim().replace(/\s+#.*$/, '')
@@ -223,12 +263,13 @@ function panels(s: RawStep, top: Frame, prev?: Record<string, PyVal>): Panel[] {
     } else if (v.t === 'dict') {
       const oldKeys = new Map(was?.t === 'dict' ? was.v.map(([a, b]) => [show(a), show(b)]) : [])
       const changed = v.v.find(([a, b]) => oldKeys.get(show(a)) !== show(b))
-      small.push({ kind: 'map', title: k, entries: v.v.map(([a, b]) => [show(a), show(b, 1)]), highlightKey: changed ? show(changed[0]) : undefined })
+      const key = (a: PyVal) => (v.cls ? `.${show(a)}` : show(a))
+      small.push({ kind: 'map', title: v.cls ? `${k}: ${v.cls} object` : k, entries: v.v.map(([a, b]) => [key(a), show(b, 1)]), highlightKey: changed ? key(changed[0]) : undefined })
     }
   }
 
   const vars: Record<string, string> = { ...prims }
-  if (s.event === 'return') vars['↩ return'] = show(s.ret)
+  if (s.event === 'return' && top.fn !== 'main') vars['↩ return'] = show(s.ret)
   if (Object.keys(vars).length) small.push({ kind: 'vars', title: `variables in ${top.fn || 'call'}()`, vars })
   if (s.stack.length > 1) {
     small.push({ kind: 'list', style: 'stack', title: 'call stack', aux: true, items: s.stack.map(frameLabel), highlight: s.stack.length - 1 })
