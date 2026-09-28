@@ -5,6 +5,7 @@ import { BackupButtons } from './components/BackupButtons'
 import { connect, reconnectIfOffline, useProgress, useSync } from './data/progress'
 import { CategoryPage } from './pages/CategoryPage'
 import { Home } from './pages/Home'
+import { LearnTrees } from './pages/LearnTrees'
 import { ProblemPage } from './pages/ProblemPage'
 import { catColors } from './theme'
 
@@ -42,6 +43,7 @@ export function App() {
 
   let page = <Home />
   if (kind === 'c' && arg) page = <CategoryPage id={arg} />
+  if (kind === 'learn' && arg === 'trees') page = <LearnTrees />
   if (kind === 'p' && arg) page = <ProblemPage num={+arg} tab={params.get('tab')} step={Number(params.get('step') ?? 1) - 1} />
 
   const activeCat = kind === 'c' ? arg : undefined
@@ -63,6 +65,11 @@ export function App() {
           </span>
         </a>
         <a href="#/" className={`nav-item${!kind ? ' on' : ''}`}>Dashboard</a>
+        <div className="nav-label">Learn</div>
+        <a href="#/learn/trees" className={`nav-item${kind === 'learn' ? ' on' : ''}`}>
+          <span className="nav-dot" style={{ background: 'hsl(140 60% 72%)' }} />Trees
+          <span className="nav-count">new</span>
+        </a>
         <div className="nav-label">Animated</div>
         {animated.map((p) => (
           <a key={p.num} href={`#/p/${p.num}`} className={`nav-item${kind === 'p' && +arg === p.num ? ' on' : ''}`}>

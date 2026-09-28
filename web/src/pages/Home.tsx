@@ -43,6 +43,15 @@ export function Home() {
         <ActivityHeatmap />
       </div>
 
+      <a href="#/learn/trees" className="card learn-banner">
+        <span className="learn-icon" aria-hidden="true">🌳</span>
+        <span>
+          <b>New lesson: Trees, from "a little" to LeetCode mediums</b>
+          <span className="muted">Traversals, 4 templates, BSTs, Big-O, a quiz, and a practice path. Every step animated.</span>
+        </span>
+        <span className="lc-link" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>Start →</span>
+      </a>
+
       <div className="card continue">
         <span className="muted" style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Continue</span>
         {recent.length === 0 ? (

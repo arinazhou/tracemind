@@ -19,7 +19,7 @@ const runner = join(process.cwd(), 'scripts', 'run_solution.py')
 const tmp = mkdtempSync(join(tmpdir(), 'tracemind-'))
 let failed = 0
 
-const NOT_EXECUTABLE = /^\s*(#|$|class |def |from |import |else:|try:|finally:|@)/
+const NOT_EXECUTABLE = /^\s*(#|$|class |def |from |import |else:|try:|finally:|@|nonlocal |global )/
 
 for (const [num, anim] of Object.entries(ANIMATIONS)) {
   if (only !== null && +num !== only) continue
