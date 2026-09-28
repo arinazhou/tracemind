@@ -37,7 +37,7 @@ export function ActivityHeatmap() {
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
         <span className="muted" style={{ fontWeight: 700 }}>Activity</span>
         <span className="faint" style={{ fontSize: 13, fontWeight: 700 }}>
-          {data ? <>🔥 {streak}-day streak</> : 'Start the backend to track activity'}
+          🔥 {streak}-day streak
         </span>
       </div>
       <div className="heat-wrap">

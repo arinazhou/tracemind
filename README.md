@@ -4,12 +4,24 @@
 pattern, replay solutions line by line, and get an explained Big-O for your own
 Python, both measured and statically analyzed.
 
+**Live: [arinazhou.github.io/tracemind](https://arinazhou.github.io/tracemind/)**
+
+## Two ways to run it
+
+| | Hosted (GitHub Pages) | Local (`./dev.sh`) |
+|---|---|---|
+| Setup | none, just open the link | Python 3.11+ and Node 20+ |
+| Progress | saved in your browser; **Back up / Restore** in the sidebar | SQLite on your machine, cached in the browser offline |
+| Complexity analyzer | `analyzer.py` running in the browser via Pyodide | the same `analyzer.py` on the FastAPI server |
+| `/animate` in Claude Code | — | yes |
+
 ```bash
 ./dev.sh      # API on :8000 + web app on http://localhost:5173 (hot reload)
 ./start.sh    # build once, serve everything from http://localhost:8000
 ```
 
-Requires Python 3.11+ and Node 20+. No accounts, API keys, or paid services.
+No accounts, API keys, or paid services. Every push to `main` runs the full
+test suite in GitHub Actions and redeploys the site only if it passes.
 
 ## Features
 
@@ -23,7 +35,8 @@ Requires Python 3.11+ and Node 20+. No accounts, API keys, or paid services.
   fitted Big-O curve, and a heat map shows the hottest lines.
 - **Complexity analyzer** (*My solution* tab): paste your Python and a static
   analyzer walks the AST to estimate time and space. It explains the estimate
-  line by line and lowers its confidence when it has to guess.
+  line by line and lowers its confidence when it has to guess. One Python file
+  serves both the FastAPI server and the hosted site (via Pyodide/WebAssembly).
 - **`/animate <num>`** (Claude Code): generates an animation from your saved
   solution, then checks it against the real Python code before registering it.
 

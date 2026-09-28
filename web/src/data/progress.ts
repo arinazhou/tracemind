@@ -18,31 +18,44 @@ export interface Entry {
 }
 
 type State = Record<number, Entry>
-export type SyncState = 'connecting' | 'synced' | 'saving' | 'offline'
+interface Event { num: number; kind: 'status' | 'solution'; value: string; at: number }
 
-// The server is the source of truth; localStorage is an offline cache.
-// Edits made while offline are merged back on reconnect (newer updatedAt wins).
+/**
+ * connecting/synced/saving/offline: running with the FastAPI server (./dev.sh).
+ * local: the hosted GitHub Pages build, where the browser is the only store.
+ */
+export type SyncState = 'connecting' | 'synced' | 'saving' | 'offline' | 'local'
+
+/** Built for GitHub Pages: no backend, nothing leaves the browser. */
+export const HOSTED = import.meta.env.VITE_STATIC === '1'
+
+// With a server, it is the source of truth and localStorage is an offline cache;
+// edits made while offline are merged back on reconnect (newer updatedAt wins).
 const KEY = 'tracemind:progress:v1'
+const EVENTS_KEY = 'tracemind:activity:v1'
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
-let state: State = load()
-let sync: SyncState = 'connecting'
+let state: State = read(KEY, {})
+let events: Event[] = read(EVENTS_KEY, [])
+let sync: SyncState = HOSTED ? 'local' : 'connecting'
 const inflight = new Map<number, ReturnType<typeof setTimeout>>()
+const pendingPatches = new Map<number, Partial<Entry>>()
 
-function load(): State {
+function read<T>(key: string, fallback: T): T {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}')
+    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback
   } catch {
-    return {}
+    return fallback
   }
 }
 
 function persist() {
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
+    localStorage.setItem(EVENTS_KEY, JSON.stringify(events))
   } catch {
-    // storage full or blocked: the server copy still has it
+    // storage full or blocked: keep the in-memory copy
   }
 }
 
@@ -58,6 +71,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function connect() {
+  if (HOSTED) return
   try {
     if (Object.keys(state).length) {
       await api('/progress/import', { method: 'POST', body: JSON.stringify(state) })
@@ -78,24 +92,26 @@ export const blankEntry = (): Entry => ({ status: 'todo', notes: '', solution: '
 
 export function update(num: number, patch: Partial<Pick<Entry, 'status' | 'notes' | 'solution'>>) {
   const prev = state[num] ?? blankEntry()
+  const now = Date.now()
   const solvedNow = patch.status === 'solved' && prev.status !== 'solved'
   state = {
     ...state,
-    [num]: { ...prev, ...patch, updatedAt: Date.now(), solvedCount: prev.solvedCount + (solvedNow ? 1 : 0) },
+    [num]: { ...prev, ...patch, updatedAt: now, solvedCount: prev.solvedCount + (solvedNow ? 1 : 0) },
   }
+  // local activity log (mirrors the server's), used when there is no server
+  if (patch.status && patch.status !== prev.status) events = [...events, { num, kind: 'status', value: patch.status, at: now }]
+  if (patch.solution !== undefined && !prev.solution && patch.solution) events = [...events, { num, kind: 'solution', value: '', at: now }]
   persist()
   emit()
+  if (HOSTED) return
 
   // Status clicks save immediately; typing (notes/solution) is debounced.
   clearTimeout(inflight.get(num))
   const typing = patch.notes !== undefined || patch.solution !== undefined
-  const pending = { ...(pendingPatches.get(num) ?? {}), ...patch }
-  pendingPatches.set(num, pending)
+  pendingPatches.set(num, { ...(pendingPatches.get(num) ?? {}), ...patch })
   inflight.set(num, setTimeout(() => flush(num), typing ? 600 : 0))
   if (sync !== 'offline') setSync('saving')
 }
-
-const pendingPatches = new Map<number, Partial<Entry>>()
 
 async function flush(num: number) {
   const patch = pendingPatches.get(num)
@@ -128,11 +144,63 @@ export function useSync(): SyncState {
   return useSyncExternalStore(subscribe, () => sync)
 }
 
+// ---------------------------------------------------------------- activity
+
 export interface DayActivity { day: string; count: number; solved: number }
 
-export function fetchActivity(): Promise<DayActivity[]> {
-  return api(`/activity?tz_offset=${new Date().getTimezoneOffset()}`)
+const localDay = (ms: number) => {
+  const d = new Date(ms)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+export async function fetchActivity(): Promise<DayActivity[]> {
+  if (!HOSTED && sync !== 'offline') {
+    try {
+      return await api(`/activity?tz_offset=${new Date().getTimezoneOffset()}`)
+    } catch {
+      // fall through to the local log
+    }
+  }
+  const byDay = new Map<string, DayActivity>()
+  for (const e of events) {
+    const day = localDay(e.at)
+    const d = byDay.get(day) ?? { day, count: 0, solved: 0 }
+    d.count++
+    if (e.kind === 'status' && e.value === 'solved') d.solved++
+    byDay.set(day, d)
+  }
+  return [...byDay.values()]
+}
+
+// ---------------------------------------------------------------- backup
+
+export function exportBackup(): string {
+  return JSON.stringify({ app: 'tracemind', version: 1, exportedAt: new Date().toISOString(), progress: state, activity: events }, null, 2)
+}
+
+/** Merge a backup file: per problem, the newer edit wins; activity is unioned. */
+export function importBackup(text: string): number {
+  const data = JSON.parse(text)
+  if (data?.app !== 'tracemind' || typeof data.progress !== 'object') throw new Error('Not a Tracemind backup file.')
+  let merged = 0
+  const next = { ...state }
+  for (const [num, e] of Object.entries(data.progress as State)) {
+    if (!next[+num] || (e.updatedAt ?? 0) > next[+num].updatedAt) {
+      next[+num] = { ...blankEntry(), ...e }
+      merged++
+    }
+  }
+  const seen = new Set(events.map((e) => `${e.num}|${e.kind}|${e.at}`))
+  const incoming = (Array.isArray(data.activity) ? data.activity : []) as Event[]
+  events = [...events, ...incoming.filter((e) => !seen.has(`${e.num}|${e.kind}|${e.at}`))].sort((a, b) => a.at - b.at)
+  state = next
+  persist()
+  emit()
+  if (!HOSTED) connect() // push merged entries to the server
+  return merged
+}
+
+// ---------------------------------------------------------------- analyzer
 
 export interface Analysis {
   ok: boolean
@@ -144,6 +212,15 @@ export interface Analysis {
   findings?: { line: number; cost: string; message: string }[]
 }
 
-export function analyzeCode(code: string): Promise<Analysis> {
-  return api('/analyze', { method: 'POST', body: JSON.stringify({ code }) })
+/** Server when available; otherwise the same analyzer.py running in-browser. */
+export async function analyzeCode(code: string): Promise<Analysis> {
+  if (!HOSTED && sync !== 'offline') {
+    try {
+      return await api('/analyze', { method: 'POST', body: JSON.stringify({ code }) })
+    } catch {
+      // fall back to the browser
+    }
+  }
+  const { analyzeInBrowser } = await import('../analyzer/browserAnalyzer')
+  return analyzeInBrowser(code)
 }

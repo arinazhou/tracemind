@@ -308,3 +308,8 @@ details.table-view td, details.table-view th { padding: 2px 10px; text-align: ri
 .continue { display: flex; align-items: center; gap: 8px; padding: 10px 16px; margin-bottom: 28px; overflow-x: auto; }
 .continue-item { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 10px; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
 .continue-item:hover { background: var(--surface-2); }
+.sync-local i { background: var(--done-fg); }
+.backup { margin: 8px 10px 0; font-size: 12px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.backup button { border: none; background: none; padding: 0; color: var(--ink-2); font-weight: 700; font-size: 12px; }
+.backup button:hover { color: var(--accent); text-decoration: underline; }
+.backup-msg { width: 100%; color: var(--ink-2); }

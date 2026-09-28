@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { ANIMATIONS } from './animations'
 import { CATEGORIES } from './data/catalog'
+import { BackupButtons } from './components/BackupButtons'
 import { connect, reconnectIfOffline, useProgress, useSync } from './data/progress'
 import { CategoryPage } from './pages/CategoryPage'
 import { Home } from './pages/Home'
@@ -19,6 +20,7 @@ const SYNC_LABEL = {
   synced: 'Synced',
   saving: 'Saving…',
   offline: 'Offline · saved in browser',
+  local: 'Saved in this browser',
 }
 
 export function App() {
@@ -86,6 +88,7 @@ export function App() {
         >
           <i />{SYNC_LABEL[sync]}
         </button>
+        <BackupButtons />
       </aside>
       <main className="main">{page}</main>
     </div>

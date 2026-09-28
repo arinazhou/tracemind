@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ANIMATIONS } from '../animations'
-import { analyzeCode, update, useProgress, type Analysis } from '../data/progress'
+import { HOSTED, analyzeCode, update, useProgress, type Analysis } from '../data/progress'
 import { CodeView } from './CodeView'
 
 const norm = (s?: string) => (s ?? '').replace(/\s+/g, '')
@@ -21,7 +21,7 @@ export function MySolution({ num }: { num: number }) {
       setResult(await analyzeCode(code))
       setAnalyzed(code)
     } catch {
-      setError('The analyzer needs the backend. Start it with ./dev.sh')
+      setError('Couldn\'t load the analyzer. Check your internet connection and try again.')
     } finally {
       setBusy(false)
     }
@@ -58,7 +58,9 @@ export function MySolution({ num }: { num: number }) {
           {anim && !code.trim() && (
             <button className="btn" onClick={() => update(num, { solution: anim.code })}>Start from the reference solution</button>
           )}
-          <span className="faint" style={{ fontSize: 12 }}>Autosaves · Tab inserts 4 spaces</span>
+          <span className="faint" style={{ fontSize: 12 }}>
+            {busy && HOSTED ? 'First run loads Python in your browser (a few seconds)…' : 'Autosaves · Tab inserts 4 spaces'}
+          </span>
         </div>
         {error && <p className="error">{error}</p>}
       </div>
@@ -73,9 +75,11 @@ export function MySolution({ num }: { num: number }) {
               halving (binary search), sorting and heap calls, memoized vs. branching recursion. Each
               conclusion is pinned to the line that caused it.
             </p>
-            <p className="muted" style={{ margin: '10px 0 0', fontSize: 14 }}>
-              Want this solution animated? In Claude Code, run <code className="kbd">/animate {num}</code>.
-            </p>
+            {!HOSTED && (
+              <p className="muted" style={{ margin: '10px 0 0', fontSize: 14 }}>
+                Want this solution animated? In Claude Code, run <code className="kbd">/animate {num}</code>.
+              </p>
+            )}
           </div>
         )}
         {result && !result.ok && <div className="card panel error">{result.error}</div>}
