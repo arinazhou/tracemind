@@ -37,6 +37,7 @@ export function MySolution({ num }: { num: number }) {
         onCodeChange={(c) => update(num, { solution: c })}
         args={example?.args ?? argsFromAnimation(num)}
         driver={example?.driver}
+        scrollOnRun
       />
     </div>
   )

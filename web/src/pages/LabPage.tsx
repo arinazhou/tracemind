@@ -66,7 +66,8 @@ export function LabPage() {
   const load = (value: string) => {
     const script = SCRIPTS.find((s) => s.label === value)
     const ex = EXAMPLES[value]
-    if (script) change(script.draft)
+    if (value === '__empty') change({ code: '', args: '', driver: '', stdin: '' })
+    else if (script) change(script.draft)
     else if (ex) change({ code: ex.code, args: ex.args ?? '', driver: ex.driver ?? '' })
     else return
     setVersion((v) => v + 1)
@@ -77,35 +78,15 @@ export function LabPage() {
       <div className="eyebrow">Tools</div>
       <h1 className="page-title">Code Visualizer</h1>
       <p className="lede">
-        If your Python runs, it visualizes. Paste a plain script, a class, or a LeetCode solution and step through it
-        line by line: every variable, arrays with index pointers, dicts, stacks and queues, grids, trees, linked lists,
-        your own objects, the call stack, and <code>print</code> output as it appears. <b>⚡ Big-O</b> explains the
-        complexity. It all runs inside your browser.
+        <b>If your Python runs, it visualizes.</b> Paste your code in step 1, press <b>▶ Visualize</b>, then step through
+        it line by line: variables, arrays with index pointers, dicts, stacks, queues, grids, trees, linked lists, your
+        own objects, the call stack and <code>print</code> output. It works out how to run your code by itself.
       </p>
-      <div className="howto">
-        <div className="card howto-card">
-          <b>A normal Python program</b>
-          <ol>
-            <li>Paste the whole program in the editor below, exactly as you'd run it with <code>python file.py</code>.</li>
-            <li>Make sure it <i>does</i> something at the bottom, like <code>print(solve([3, 1, 2]))</code>. Only defining functions runs nothing.</li>
-            <li>"Run as a script" is picked automatically. If it calls <code>input()</code>, type the input in the stdin box, one line per call.</li>
-            <li>Press <b>▶ Visualize</b>, then step with <b>Next</b> / <b>Prev</b> (or <span className="kbd">←</span> <span className="kbd">→</span>, <span className="kbd">space</span> to play).</li>
-          </ol>
-        </div>
-        <div className="card howto-card">
-          <b>A LeetCode solution (class Solution)</b>
-          <ol>
-            <li>Paste it as submitted. "Call a function" is picked automatically.</li>
-            <li>Type the arguments in the <code>Solution().method( … )</code> box, e.g. <code>[2, 7, 11, 15], 9</code>. Use <code>tree([…])</code> or <code>linked([…])</code> for TreeNode / ListNode inputs.</li>
-            <li>Press <b>▶ Visualize</b>. <b>⚡ Big-O</b> explains the complexity.</li>
-          </ol>
-        </div>
-      </div>
-
       <div className="row" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
-        <label className="muted" style={{ fontSize: 13.5, fontWeight: 700 }}>Or load an example:</label>
+        <label className="muted" style={{ fontSize: 13.5, fontWeight: 700 }}>New here? Load an example:</label>
         <select className="lab-select" value="" onChange={(e) => load(e.target.value)}>
           <option value="" disabled>choose…</option>
+          <option value="__empty">(empty editor: paste your own code)</option>
           <optgroup label="Any Python program">
             {SCRIPTS.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
           </optgroup>
@@ -123,6 +104,7 @@ export function LabPage() {
         args={draft.args}
         driver={draft.driver || undefined}
         stdin={draft.stdin}
+        scrollOnRun
         onRunInputs={(inputs) => { if (inputs.args !== draft.args || inputs.driver !== draft.driver || inputs.stdin !== (draft.stdin ?? '')) saveDraft({ ...draft, ...inputs }) }}
       />
     </div>

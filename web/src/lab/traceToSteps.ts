@@ -114,9 +114,21 @@ function describeChange(k: string, was: PyVal, now: PyVal): string {
 const same = (a?: PyVal, b?: PyVal) => JSON.stringify(a) === JSON.stringify(b)
 const asInt = (v?: PyVal) => (v?.t === 'prim' && /^-?\d+$/.test(v.r) ? Number(v.r) : null)
 
-function frameLabel(f: Frame) {
+/** The value stored in the tree/list node a pointer variable refers to. */
+function nodeValue(s: RawStep, id: number): string {
+  const [sid, pos] = s.refs[String(id)] ?? []
+  const st = sid !== undefined ? s.structs[String(sid)] : undefined
+  if (st?.kind === 'linked') return st.vals[pos] ?? '?'
+  if (st?.kind === 'tree') return st.nodes[pos]?.v ?? '?'
+  return '?'
+}
+
+/** Like show(), but node pointers read as the node's value. */
+const showIn = (s: RawStep, v: PyVal | undefined) => (v?.t === 'ref' ? nodeValue(s, v.id) : show(v))
+
+function frameLabel(s: RawStep, f: Frame) {
   const args = Object.entries(f.vars).filter(([, v]) => v.t === 'prim' || v.t === 'ref').slice(0, 3)
-  return `${f.fn}(${args.map(([k, v]) => `${k}=${show(v)}`).join(', ')})`
+  return `${f.fn}(${args.map(([k, v]) => `${k}=${showIn(s, v)}`).join(', ')})`
 }
 
 function treeRoot(s: Extract<Struct, { kind: 'tree' }>): TNode | null {
@@ -170,9 +182,9 @@ function note(s: RawStep, top: Frame, prev: Record<string, PyVal> | undefined, s
   const changes: string[] = []
   for (const [k, v] of Object.entries(top.vars)) {
     if (prev && same(prev[k], v)) continue
-    if (!prev || !(k in prev)) changes.push(v.t === 'prim' || v.t === 'ref' ? `${k} = ${show(v)}` : `new ${k}`)
+    if (!prev || !(k in prev)) changes.push(v.t === 'ref' ? `${k} → node ${nodeValue(s, v.id)}` : v.t === 'prim' ? `${k} = ${show(v)}` : `new ${k}`)
     else if (v.t === 'prim') changes.push(`${k}: ${show(prev[k])} → ${v.r}`)
-    else if (v.t === 'ref') changes.push(`${k} moved`)
+    else if (v.t === 'ref') changes.push(`${k} → node ${nodeValue(s, v.id)}`)
     else changes.push(describeChange(k, prev[k], v))
   }
   const head = s.event === 'return' && top.fn !== 'main' ? `${top.fn} returns ${show(s.ret)}` : ''
@@ -272,7 +284,7 @@ function panels(s: RawStep, top: Frame, prev?: Record<string, PyVal>): Panel[] {
   if (s.event === 'return' && top.fn !== 'main') vars['↩ return'] = show(s.ret)
   if (Object.keys(vars).length) small.push({ kind: 'vars', title: `variables in ${top.fn || 'call'}()`, vars })
   if (s.stack.length > 1) {
-    small.push({ kind: 'list', style: 'stack', title: 'call stack', aux: true, items: s.stack.map(frameLabel), highlight: s.stack.length - 1 })
+    small.push({ kind: 'list', style: 'stack', title: 'call stack', aux: true, items: s.stack.map((f) => frameLabel(s, f)), highlight: s.stack.length - 1 })
   }
   return [...out, ...small]
 }

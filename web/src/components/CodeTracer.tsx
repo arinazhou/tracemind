@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { analyzeCode, type Analysis } from '../data/progress'
 import type { Step } from '../engine/types'
 import { callPython } from '../lab/pyWorker'
+import { explainError, sampleArgs } from '../lab/friendly'
 import { showResult, toSteps, type TraceResult } from '../lab/traceToSteps'
 import { AnalysisCard } from './AnalysisCard'
 import { StepView } from './StepView'
@@ -16,6 +17,8 @@ interface Props {
   autoRun?: boolean
   /** Remember edits to args/driver/stdin/mode (the Code Visualizer keeps a draft). */
   onRunInputs?: (inputs: { args: string; driver: string; stdin: string }) => void
+  /** Scroll to the animation after a manual run (off inside lessons). */
+  scrollOnRun?: boolean
   showAnalyze?: boolean
 }
 
@@ -44,7 +47,7 @@ export function looksLikeScript(code: string) {
   return false
 }
 
-export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver: initialDriver, stdin: initialStdin = '', autoRun, showAnalyze = true, onRunInputs }: Props) {
+export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver: initialDriver, stdin: initialStdin = '', autoRun, showAnalyze = true, onRunInputs, scrollOnRun }: Props) {
   const [args, setArgs] = useState(initialArgs)
   const [driver, setDriver] = useState(initialDriver ?? '')
   const [stdin, setStdin] = useState(initialStdin)
@@ -60,9 +63,17 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
   const [busy, setBusy] = useState<'' | 'trace' | 'analyze'>('')
   const [error, setError] = useState('')
   const started = useRef(false)
+  const resultRef = useRef<HTMLDivElement>(null)
+  const [showModes, setShowModes] = useState(false)
+  const [showStdin, setShowStdin] = useState(!!initialStdin)
   const sig = signature(code)
+  // pre-fill runnable sample arguments until the user types their own
+  const autoArgs = useRef(!initialArgs)
+  const params = sig?.params ?? ''
+  useEffect(() => { if (autoArgs.current && mode === 'call') setArgs(sampleArgs(params)) }, [params, mode])
+  const usesInput = /\binput\s*\(/.test(code)
 
-  const visualize = async () => {
+  const visualize = async (manual = true) => {
     setBusy('trace')
     setError('')
     try {
@@ -71,14 +82,15 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
       if (!result.steps?.length) {
         setSteps(null)
         setTraced(null)
-        setError(result.error ?? 'Nothing ran. Check the arguments.')
+        setError(explainError(result.error ?? 'Nothing ran. Check the arguments.', mode))
       } else {
         setSteps(toSteps(result, code))
         setTraced({ code, result, script: mode === 'script' })
-        if (!result.ok) setError(result.error ?? 'Error')
+        if (!result.ok) setError(explainError(result.error ?? 'Error', mode))
+        if (manual && scrollOnRun) requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(explainError(e instanceof Error ? e.message : String(e), mode))
     } finally {
       setBusy('')
     }
@@ -96,10 +108,15 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
   }
 
   useEffect(() => {
-    if (autoRun && !started.current) { started.current = true; visualize() }
+    if (autoRun && !started.current) { started.current = true; visualize(false) }
   }, [autoRun]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const onKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (!busy) visualize() }
+  }
+
   const onTab = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    onKey(e)
     if (e.key !== 'Tab' || !onCodeChange) return
     e.preventDefault()
     const el = e.currentTarget
@@ -113,56 +130,89 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
 
   return (
     <div className="tracer">
-      <div className="card tracer-input">
+      <div className="card tracer-input" onKeyDown={onKey}>
         {onCodeChange && (
-          <textarea
-            className="editor" value={code} spellCheck={false} onKeyDown={onTab}
-            onChange={(e) => onCodeChange(e.target.value)}
-            placeholder={'class Solution:\n    def solve(self, nums):\n        ...'}
-          />
+          <>
+            <div className="step-label"><span>1</span>Your code <span className="faint">(paste anything that runs: a script, functions, a class, a LeetCode solution)</span></div>
+            <textarea
+              className="editor" value={code} spellCheck={false} onKeyDown={onTab}
+              onChange={(e) => onCodeChange(e.target.value)}
+              placeholder={'# paste Python here, e.g.\nnums = [3, 1, 2]\nnums.sort()\nprint(nums)'}
+            />
+          </>
         )}
-        <div className="mode-switch" role="tablist" aria-label="How to run">
-          {([['script', 'Run as a script'], ['call', 'Call a function'], ['driver', 'Driver code']] as [Mode, string][]).map(([m, label]) => (
-            <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); setTouchedMode(true) }}>{label}</button>
-          ))}
+
+        <div className="step-label">
+          <span>{onCodeChange ? 2 : 1}</span>How it runs
+          <button className="hint-btn" onClick={() => setShowModes((v) => !v)}>{showModes ? 'hide options' : 'change'}</button>
         </div>
-        <div className="call-row">
-          {mode === 'script' ? (
-            <div style={{ flex: 1 }}>
-              <div className="faint" style={{ fontSize: 12.5, marginBottom: 6 }}>Runs the whole file, top to bottom, like <code>python file.py</code>. Optional input for <code>input()</code>, one line per call:</div>
-              <textarea className="stdin" value={stdin} onChange={(e) => setStdin(e.target.value)} spellCheck={false} placeholder="stdin (optional)" />
-            </div>
-          ) : mode === 'driver' ? (
-            <textarea className="driver" value={driver} onChange={(e) => setDriver(e.target.value)} spellCheck={false}
-              placeholder={'s = MinStack()\ns.push(3)\ns.getMin()'} />
-          ) : (
+        {showModes && (
+          <div className="mode-switch" role="tablist" aria-label="How to run">
+            {([['script', 'Run as a script'], ['call', 'Call a function'], ['driver', 'Driver code']] as [Mode, string][]).map(([m, label]) => (
+              <button key={m} className={mode === m ? 'on' : ''} onClick={() => { setMode(m); setTouchedMode(true) }}>{label}</button>
+            ))}
+          </div>
+        )}
+        {mode === 'script' && (
+          <div className="run-how">
+            <p>📄 <b>As a program:</b> runs the whole file top to bottom, like <code>python file.py</code>. Make sure something at the bottom actually runs (e.g. <code>print(...)</code>).</p>
+            {usesInput || showStdin ? (
+              <>
+                <div className="faint" style={{ fontSize: 12.5, margin: '8px 0 4px' }}>Your code calls <code>input()</code>. Type what it should read, one line per call:</div>
+                <textarea className="stdin" value={stdin} onChange={(e) => setStdin(e.target.value)} spellCheck={false} placeholder={'first line\nsecond line'} />
+              </>
+            ) : (
+              <button className="hint-btn" onClick={() => setShowStdin(true)}>+ add input for input()</button>
+            )}
+          </div>
+        )}
+        {mode === 'call' && (
+          <div className="run-how">
+            <p>🧩 <b>As a LeetCode-style function:</b> calls it with these arguments.{autoArgs.current && sig ? <span className="faint"> (Sample values filled in. Replace them with your own test case.)</span> : null}</p>
             <label className="call">
               <code>{sig ? sig.call : 'Solution().method'}(</code>
-              <input value={args} onChange={(e) => setArgs(e.target.value)} spellCheck={false}
+              <input value={args} onChange={(e) => { autoArgs.current = false; setArgs(e.target.value) }} spellCheck={false}
                 placeholder={sig?.params || 'arguments'} onKeyDown={(e) => { if (e.key === 'Enter') visualize() }} />
               <code>)</code>
             </label>
-          )}
-        </div>
-        <div className="row" style={{ flexWrap: 'wrap', marginTop: 10 }}>
-          <button className="btn primary" onClick={visualize} disabled={!!busy || !code.trim()}>
-            {busy === 'trace' ? 'Running…' : steps ? '↻ Re-run' : '▶ Visualize'}
+          </div>
+        )}
+        {mode === 'driver' && (
+          <div className="run-how">
+            <p>🎛 <b>Driver code:</b> a few lines that create your object and call its methods (for design problems like MinStack or LRU Cache). The last line's value is shown as the result.</p>
+            <textarea className="driver" value={driver} onChange={(e) => setDriver(e.target.value)} spellCheck={false} placeholder={'s = MinStack()\ns.push(3)\ns.getMin()'} />
+          </div>
+        )}
+
+        <div className="step-label"><span>{onCodeChange ? 3 : 2}</span>Run it</div>
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <button className="btn primary big" onClick={() => visualize()} disabled={!!busy || !code.trim()}>
+            {busy === 'trace' ? 'Running…' : steps ? '↻ Run again' : '▶ Visualize'}
           </button>
           {showAnalyze && (
             <button className="btn" onClick={analyze} disabled={!!busy || !code.trim()}>{busy === 'analyze' ? 'Analyzing…' : '⚡ Big-O'}</button>
           )}
-          {busy && <span className="faint" style={{ fontSize: 12.5 }}>The first run downloads Python (a few seconds)…</span>}
+          <span className="faint" style={{ fontSize: 12.5 }}>
+            {busy ? 'The first run downloads Python (a few seconds)…' : <>or press <span className="kbd">Ctrl</span>/<span className="kbd">⌘</span> + <span className="kbd">Enter</span></>}
+          </span>
         </div>
-        <p className="faint tracer-help">
-          Any Python that runs will visualize: scripts, functions, classes, recursion. In function mode, arguments are Python: <code>[2, 7, 11, 15], 9</code>. Trees: <code>tree([3, 9, 20, None, None, 15, 7])</code>. Linked
-          lists: <code>linked([1, 2, 3])</code> (add <code>pos=1</code> for a cycle). Everything runs in your browser.
-        </p>
-        {error && <p className="error">{error}</p>}
+        {error && <div className="friendly-error">⚠️ {error}</div>}
+        <details className="tips">
+          <summary>Tips: writing arguments, trees, linked lists</summary>
+          <ul>
+            <li>Arguments are Python values, separated by commas: <code>[2, 7, 11, 15], 9</code> or <code>"abcabcbb"</code> (text needs quotes).</li>
+            <li>TreeNode input: <code>tree([3, 9, 20, None, None, 15, 7])</code> (LeetCode's level-order list).</li>
+            <li>ListNode input: <code>linked([1, 2, 3])</code>; add <code>pos=1</code> to make the tail point back (a cycle).</li>
+            <li>Keep inputs small: animations stop after 1,500 steps.</li>
+            <li>Python only (standard library). Everything runs in your browser; nothing is uploaded.</li>
+          </ul>
+        </details>
       </div>
 
+      <div ref={resultRef} style={{ scrollMarginTop: 12 }} />
       {steps && traced && (
         <>
-          {stale && <p className="faint" style={{ fontSize: 12.5 }}>The code changed since this run. Press Re-run.</p>}
+          {stale && <p className="faint" style={{ fontSize: 12.5 }}>The code changed since this run. Press Run again.</p>}
           <StepView
             code={traced.code}
             steps={steps}
@@ -176,7 +226,6 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
                   <span className="var"><span className="k">steps = </span>{steps.length}{result?.truncated ? '+' : ''}</span>
                 </div>
                 {result?.truncated && <p className="error" style={{ marginBottom: 0 }}>Stopped after {steps.length} steps. Try a smaller input (or check for an infinite loop).</p>}
-                {result?.stdout && <pre className="stdout">{result.stdout}</pre>}
               </div>
             }
           />
