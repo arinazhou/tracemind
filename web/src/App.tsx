@@ -28,7 +28,8 @@ export function App() {
   const [path, query = ''] = hash.split('?')
   const params = new URLSearchParams(query)
   const [, kind, arg] = path.split('/')
-  useEffect(() => window.scrollTo(0, 0), [hash])
+  // braces matter: newer Chrome returns a Promise from scrollTo, and React would call it as a cleanup
+  useEffect(() => { window.scrollTo(0, 0) }, [hash])
 
   useEffect(() => {
     connect()

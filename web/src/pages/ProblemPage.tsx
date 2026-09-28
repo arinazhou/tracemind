@@ -18,7 +18,7 @@ export function ProblemPage({ num, tab: tabParam, step = 0 }: { num: number; tab
   const anim = ANIMATIONS[num]
   const initialTab = (): Tab => (TABS.includes(tabParam as Tab) ? (tabParam as Tab) : anim ? 'animation' : 'solution')
   const [tab, setTab] = useState<Tab>(initialTab)
-  useEffect(() => setTab(initialTab()), [num, anim, tabParam]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setTab(initialTab()) }, [num, anim, tabParam]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!found) return <p>Unknown problem.</p>
   const { problem: p, category: c } = found
   const col = catColors(c.hue)
