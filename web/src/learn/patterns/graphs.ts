@@ -53,7 +53,7 @@ for node in graph:
     'Pacific Atlantic / Surrounded Regions: DFS from the BORDER inward, not from every cell.',
   ],
   ds: ['trees', 'graphs'],
-  cs225: 'Graph traversals (lecture 27): DFS classifies edges as discovery (tree) edges and back edges, and a back edge means a cycle. With an adjacency list, BFS and DFS are both O(n + m). Tree traversals are covered in lectures 9–10.',
+  cs225: 'Graph traversals: DFS classifies edges as discovery (tree) edges and back edges, and a back edge means a cycle. With an adjacency list, BFS and DFS are both O(n + m). Tree traversals are covered in CS 225\'s tree lectures.',
   stages: [
     { title: 'Trees: warm up (see the Trees page)', items: [
       [144, 'Binary Tree Preorder Traversal', 'E', 'Visit, left, right.', 'traversal'],
@@ -144,7 +144,7 @@ return -1`,
     'Right Side View: the last node of each level.',
   ],
   ds: ['graphs', 'trees', 'stacks-queues'],
-  cs225: 'BFS (lecture 27) builds a tree of fewest-edge paths from the start: O(n + m) on an adjacency list. Queues come from lecture 7.',
+  cs225: 'BFS builds a tree of fewest-edge paths from the start: O(n + m) on an adjacency list. Queues are CS 225\'s stacks & queues lecture.',
   stages: [
     { title: 'Trees', items: [
       [102, 'Binary Tree Level Order Traversal', 'M', 'The level template.', 'levels'],
@@ -261,7 +261,7 @@ has_cycle = len(order) < n`,
     'Alien Dictionary: compare adjacent words; the first differing letter gives one edge. Watch the prefix edge case ("abc" before "ab" is invalid).',
   ],
   ds: ['graphs'],
-  cs225: 'Graph representations (lectures 24–26): an adjacency list takes O(n + m) space, ideal for sparse dependency graphs, and an adjacency matrix takes O(n²). Topological order exists exactly when the directed graph is acyclic (a DAG).',
+  cs225: 'Graph representations: an adjacency list takes O(n + m) space, ideal for sparse dependency graphs, and an adjacency matrix takes O(n²). Topological order exists exactly when the directed graph is acyclic (a DAG).',
   stages: [
     { title: 'Practice', items: [
       [207, 'Course Schedule', 'M', 'Kahn\'s; return len(order) == n.', 'kahn'],
@@ -312,7 +312,7 @@ def union(a, b):
     'Smallest String With Swaps: union swappable indices, then sort characters within each group.',
   ],
   ds: ['disjoint-sets', 'graphs'],
-  cs225: 'Disjoint sets (lectures 22–23): CS 225 stores "UpTrees" in one array, where a root holds a negative number (its size or height). Smart union + path compression gives O(log* n) amortized per operation, CS 225\'s bound. The tighter bound is α(n).',
+  cs225: 'Disjoint sets: CS 225 stores "UpTrees" in one array, where a root holds a negative number (its size or height). Smart union + path compression gives O(log* n) amortized per operation, CS 225\'s bound. The tighter bound is α(n).',
   stages: [
     { title: 'Practice', items: [
       [547, 'Number of Provinces', 'M', 'Union every connected pair; count roots.', 'components'],
@@ -374,7 +374,7 @@ for w, u, v in edges:
     'Swim in Rising Water: Dijkstra/heap on max elevation, or union-find by time.',
   ],
   ds: ['graphs', 'heaps', 'disjoint-sets'],
-  cs225: 'MST (lectures 28–29): Kruskal uses disjoint sets and Prim uses a heap. Dijkstra\'s single-source shortest path (lecture 30) and Floyd–Warshall all-pairs (lecture 31) are both straight out of CS 225.',
+  cs225: 'MST: Kruskal uses disjoint sets and Prim uses a heap. Dijkstra\'s single-source shortest path and Floyd–Warshall all-pairs are both straight out of CS 225.',
   stages: [
     { title: 'Practice', items: [
       [743, 'Network Delay Time', 'M', 'Plain Dijkstra; the answer is the max distance.', 'dijkstra'],

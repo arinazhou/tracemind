@@ -82,8 +82,28 @@ export function LabPage() {
         your own objects, the call stack, and <code>print</code> output as it appears. <b>⚡ Big-O</b> explains the
         complexity. It all runs inside your browser.
       </p>
+      <div className="howto">
+        <div className="card howto-card">
+          <b>A normal Python program</b>
+          <ol>
+            <li>Paste the whole program in the editor below, exactly as you'd run it with <code>python file.py</code>.</li>
+            <li>Make sure it <i>does</i> something at the bottom, like <code>print(solve([3, 1, 2]))</code>. Only defining functions runs nothing.</li>
+            <li>"Run as a script" is picked automatically. If it calls <code>input()</code>, type the input in the stdin box, one line per call.</li>
+            <li>Press <b>▶ Visualize</b>, then step with <b>Next</b> / <b>Prev</b> (or <span className="kbd">←</span> <span className="kbd">→</span>, <span className="kbd">space</span> to play).</li>
+          </ol>
+        </div>
+        <div className="card howto-card">
+          <b>A LeetCode solution (class Solution)</b>
+          <ol>
+            <li>Paste it as submitted. "Call a function" is picked automatically.</li>
+            <li>Type the arguments in the <code>Solution().method( … )</code> box, e.g. <code>[2, 7, 11, 15], 9</code>. Use <code>tree([…])</code> or <code>linked([…])</code> for TreeNode / ListNode inputs.</li>
+            <li>Press <b>▶ Visualize</b>. <b>⚡ Big-O</b> explains the complexity.</li>
+          </ol>
+        </div>
+      </div>
+
       <div className="row" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
-        <label className="muted" style={{ fontSize: 13.5, fontWeight: 700 }}>Load an example:</label>
+        <label className="muted" style={{ fontSize: 13.5, fontWeight: 700 }}>Or load an example:</label>
         <select className="lab-select" value="" onChange={(e) => load(e.target.value)}>
           <option value="" disabled>choose…</option>
           <optgroup label="Any Python program">

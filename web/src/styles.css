@@ -470,3 +470,13 @@ details.table-view td, details.table-view th { padding: 2px 10px; text-align: ri
 .mode-switch button { border: none; background: none; border-radius: 8px; padding: 5px 12px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
 .mode-switch button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(60,45,30,.08); }
 .stdin { width: 100%; min-height: 56px; font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface-2); resize: vertical; }
+.slide-links li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.lecture-title { font-weight: 700; min-width: 190px; }
+.slide-blank { font-size: 12.5px; text-decoration: underline dotted; }
+.slide-blank:hover { color: var(--ink-2); }
+.howto { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 4px 0 16px; }
+.howto-card { padding: 14px 18px; }
+.howto-card b { font-size: 15px; }
+.howto-card ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+.howto-card code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+@media (max-width: 900px) { .howto { grid-template-columns: 1fr; } }

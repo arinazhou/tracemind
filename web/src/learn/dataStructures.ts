@@ -1,9 +1,13 @@
-// Data structure reference pages, following UIUC CS 225's lectures (Spring 2024
-// slides, linked on each page) but in Python. Short on purpose: the interview
+// Data structure reference pages, following UIUC CS 225's lectures (Spring 2026
+// annotated notes + slides, linked on each page) but in Python. Short on purpose: the interview
 // patterns are the main track; these explain the machinery underneath.
 import type { DataStructure } from './types'
 
-export const CS225_SLIDES = 'https://courses.grainger.illinois.edu/cs225/sp2024/assets/lectures/slides/'
+export const CS225_SLIDES = 'https://courses.grainger.illinois.edu/cs225/sp2026/assets/lectures/slides/'
+export const CS225_LECTURES_PAGE = 'https://courses.grainger.illinois.edu/cs225/sp2026/pages/lectures.html'
+
+/** Blank slides and the annotated version written on during lecture. */
+export const slideUrls = (stem: string) => ({ blank: `${CS225_SLIDES}${stem}.pdf`, annotated: `${CS225_SLIDES}${stem}-annotated.pdf` })
 
 export const DATA_STRUCTURES: DataStructure[] = [
   {
@@ -31,11 +35,11 @@ bad = [[0] * cols] * rows                  # rows are the SAME list object!
       ['Slice a[i:j]', 'O(j − i)', 'it copies'],
     ],
     ideas: [
-      'Amortized analysis (lecture 6): growing by a constant k costs O(n) per append on average, while DOUBLING the capacity makes each append O(1) amortized, because the total copying is 1 + 2 + 4 + … + n < 2n.',
+      'Amortized analysis: growing by a constant k costs O(n) per append on average, while DOUBLING the capacity makes each append O(1) amortized, because the total copying is 1 + 2 + 4 + … + n < 2n.',
       'Contiguous memory is cache-friendly, which is why arrays usually beat linked lists in practice even at equal Big-O.',
       'Python strings are immutable arrays, so build them with a list and "".join.',
     ],
-    lectures: [['Array Lists', 'cs225sp24-05-arraylist'], ['Amortized Analysis', 'cs225sp24-06-amortized'], ['List ADT', 'cs225sp24-03-ListADT']],
+    lectures: [['Array Lists (and amortized resizing)', 'cs225sp26-06-array-slides'], ['List ADT', 'cs225sp26-03-listadt-slides']],
     patterns: ['two-pointers', 'sliding-window', 'prefix-sum', 'binary-search', 'cyclic-sort', 'matrices'],
   },
   {
@@ -68,7 +72,7 @@ q.appendleft(0); q.popleft()      # O(1) at both ends`,
       'Sentinel (dummy) nodes remove the empty-list and head special cases. That\'s the "dummy head" trick in the Linked List lesson.',
       'Doubly linked list + hash map = O(1) LRU cache.',
     ],
-    lectures: [['List ADT', 'cs225sp24-03-ListADT'], ['Linked Lists Implementation', 'cs225sp24-04-linkedMemory']],
+    lectures: [['List ADT', 'cs225sp26-03-listadt-slides'], ['Linked Lists', 'cs225sp26-04-linked2-slides'], ['Linked Lists (continued)', 'cs225sp26-05-linked3-slides']],
     patterns: ['linked-list', 'hashing'],
   },
   {
@@ -98,14 +102,14 @@ queue.popleft()        # 1: O(1). Never use list.pop(0) for a queue!
       'Recursion uses the call stack, so any recursive DFS can be rewritten with an explicit stack (useful for Python\'s recursion limit).',
       'A priority queue is NOT a queue in this sense. It is a heap (see Heaps).',
     ],
-    lectures: [['Stacks and Queues', 'cs225sp24-07-StackQueue']],
+    lectures: [['Stacks & Queues', 'cs225sp26-07-quacks-slides']],
     patterns: ['stack', 'bfs', 'sliding-window', 'dfs'],
   },
   {
     id: 'trees', title: 'Trees & BSTs', hue: 140, custom: true,
     short: 'The full interactive lesson: vocabulary, traversals, 4 templates, BSTs, Big-O.',
     what: '', python: '', ops: [], ideas: [],
-    lectures: [['Trees', 'cs225sp24-09-Trees'], ['Tree Theory and Traversal', 'cs225sp24-10-treeProof'], ['BST', 'cs225sp24-11-BST']],
+    lectures: [['Tree Intro', 'cs225sp26-09-treeintro'], ['Tree Traversal', 'cs225sp26-10-treetraversal'], ['Tree Search', 'cs225sp26-11-treesearch'], ['BST', 'cs225sp26-12-bst'], ['BST Implementation', 'cs225sp26-13-bstimplementation']],
     patterns: ['dfs', 'bfs', 'backtracking'],
   },
   {
@@ -134,7 +138,7 @@ s[0], s[-1]                    # min, max`,
       'You won\'t implement AVL in an interview, but "a balanced BST (TreeMap / SortedList) gives O(log n)" is a common answer to "how would you keep this sorted under updates?"',
       'B-trees trade CPU work for fewer disk reads, which is why databases and filesystems use them.',
     ],
-    lectures: [['Balanced BST', 'cs225sp24-13-BBST'], ['Rotations', 'cs225sp24-14-Rotations'], ['AVL Trees', 'cs225sp24-15-AVL'], ['Range Search & k-d Tree', 'cs225sp24-17-Range'], ['B-Tree', 'cs225sp24-18-BTree']],
+    lectures: [['AVL Trees: Intro', 'cs225sp26-16-avltrees-intro'], ['AVL Trees: Implementation', 'cs225sp26-17-avltrees-implementation'], ['AVL Trees: Analysis', 'cs225sp26-18-avltrees-analysis'], ['k-d Trees', 'cs225sp26-14-kdtrees'], ['B-Tree Intro', 'cs225sp26-19-btreeintroduction'], ['B-Tree Analysis', 'cs225sp26-20-btreeanalysis-slides']],
     patterns: ['binary-search', 'dfs'],
   },
   {
@@ -164,7 +168,7 @@ heapq.nlargest(3, nums)`,
       'buildHeap is O(n) because it heapifies DOWN from the last internal node. Most nodes sit near the bottom and move only a little.',
       'Heaps are how CS 225 implements the priority queue ADT behind Dijkstra and Prim.',
     ],
-    lectures: [['Heaps', 'cs225sp24-20-Heaps'], ['Heaps (2)', 'cs225sp24-21-Heaps']],
+    lectures: [['Heaps', 'cs225sp26-21-heaps-slides'], ['Heap Analysis (buildHeap is O(n))', 'cs225sp26-22-heapsanalysis-slides']],
     patterns: ['heap', 'intervals', 'shortest-path', 'greedy'],
   },
   {
@@ -192,9 +196,9 @@ d[frozenset(s)] = 1`,
       'Separate chaining: each bucket is a list, and the expected chain length is the load factor α = n / m.',
       'Open addressing (what Python uses): on a collision, probe other slots. Linear probing clusters; double hashing spreads keys out.',
       'CS 225\'s analysis assumes SUHA (simple uniform hashing). Keeping α bounded by resizing gives O(1) expected time per operation.',
-      'Bloom filters (lectures 37–38) answer "maybe in the set / definitely not" in tiny space. Worth one sentence in a system-design chat.',
+      'Bloom filters answer "maybe in the set / definitely not" in tiny space. Worth one sentence in a system-design chat.',
     ],
-    lectures: [['Hash Table', 'cs225sp24-34-Hashing'], ['Hashing 2', 'cs225sp24-35-Hashing2'], ['Hashing 3', 'cs225sp24-36-Hashing3'], ['Bloom Filters', 'cs225sp24-37-bloom']],
+    lectures: [['Hashing', 'cs225sp26-35-hashing-slides'], ['Hashing 2', 'cs225sp26-36-hashing2-slides'], ['Hashing 3', 'cs225sp26-37-hashing3-slides'], ['Bloom Filters', 'cs225sp26-38-bloom-slides']],
     patterns: ['hashing', 'prefix-sum', 'sliding-window', 'dp'],
   },
   {
@@ -221,7 +225,7 @@ up = [-1] * n`,
       'Path compression: while finding the root, point visited nodes directly at it.',
       'Used for Kruskal\'s MST, connected components under edge insertions, and grouping (accounts, equations).',
     ],
-    lectures: [['Disjoint Sets', 'cs225sp24-22-DisjointSets'], ['Disjoint Sets Analysis', 'cs225sp24-23-DSanalysus']],
+    lectures: [['Disjoint Sets', 'cs225sp26-24-sets-slides'], ['Disjoint Sets: Analysis', 'cs225sp26-25-sets2-slides']],
     patterns: ['union-find', 'shortest-path'],
   },
   {
@@ -255,7 +259,7 @@ for u, v in edges:
       'BFS finds fewest-edge paths; DFS finds structure (back edges = cycles, topological order).',
       'CS 225 compares edge list, adjacency matrix, and adjacency list implementations. The trade-off table above is a common interview discussion.',
     ],
-    lectures: [['Graphs', 'cs225sp24-24-Graphs'], ['Graph Implementations', 'cs225sp24-25-GraphsImpl'], ['Graph Traversals', 'cs225sp24-27-BFSDFS'], ['MST', 'cs225sp24-28-MST'], ['Dijkstra', 'cs225sp24-30-Dijkstra'], ['Floyd–Warshall', 'cs225sp24-31-floydwarshall']],
+    lectures: [['Graphs', 'cs225sp26-26-graph-slides'], ['Graph Implementations', 'cs225sp26-27-graph2-slides'], ['Graph Traversals (BFS / DFS)', 'cs225sp26-29-bfsdfs-slides'], ['MST', 'cs225sp26-30-mst-slides'], ['MST 2', 'cs225sp26-31-mst2-slides'], ['Shortest Paths (Dijkstra)', 'cs225sp26-32-sssp-slides'], ['All-Pairs Shortest Paths', 'cs225sp26-33-allpaths-slides']],
     patterns: ['dfs', 'bfs', 'topo-sort', 'union-find', 'shortest-path'],
   },
 ]

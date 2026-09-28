@@ -49,7 +49,7 @@ for i, x in enumerate(nums):
     'Decode String: push (current string, repeat count) when you see "[", and combine on "]".',
   ],
   ds: ['stacks-queues', 'arrays'],
-  cs225: 'Stacks and queues (lecture 7) are ADTs usually built on array lists, so push and pop are O(1) amortized, which is exactly Python\'s list.append / list.pop.',
+  cs225: 'Stacks and queues are ADTs usually built on array lists, so push and pop are O(1) amortized, which is exactly Python\'s list.append / list.pop.',
   stages: [
     { title: 'Stack basics', items: [
       [20, 'Valid Parentheses', 'E', 'The matching template.', 'matching'],
@@ -122,7 +122,7 @@ return dummy.next`,
     'Copy List with Random Pointer: a dict old → new, or interleave copies.',
   ],
   ds: ['linked-lists'],
-  cs225: 'List ADT and linked memory (lectures 3–4): O(1) insert/remove at a known node, but O(n) access by index, the opposite trade-off from array lists. CS 225 implements them with head/tail pointers and sentinel nodes, which is our dummy head.',
+  cs225: 'List ADT and linked memory: O(1) insert/remove at a known node, but O(n) access by index, the opposite trade-off from array lists. CS 225 implements them with head/tail pointers and sentinel nodes, which is our dummy head.',
   stages: [
     { title: 'Warm up', items: [
       [206, 'Reverse Linked List', 'E', 'prev / cur / nxt.', 'reverse'],
@@ -192,7 +192,7 @@ while heap:
     'heapq.nlargest(k, it) / nsmallest are fine for one-off queries.',
   ],
   ds: ['heaps'],
-  cs225: 'Heaps (lectures 20–21): a complete binary tree stored in an array (CS 225 uses 1-indexing: children 2i and 2i + 1; Python\'s heapq is 0-indexed: 2i + 1 and 2i + 2). heapifyUp/Down are O(log n), buildHeap is O(n), and heap sort is O(n log n).',
+  cs225: 'Heaps: a complete binary tree stored in an array (CS 225 uses 1-indexing: children 2i and 2i + 1; Python\'s heapq is 0-indexed: 2i + 1 and 2i + 2). heapifyUp/Down are O(log n), buildHeap is O(n), and heap sort is O(n log n).',
   stages: [
     { title: 'Top-k', items: [
       [1046, 'Last Stone Weight', 'E', 'Max-heap via negatives; smash the two largest.', 'max-heap'],
@@ -247,7 +247,7 @@ def starts_with(prefix):
     'Search suggestions: sort the words, or keep the top 3 at each node.',
   ],
   ds: ['trees', 'hashing'],
-  cs225: 'A trie is a tree whose nodes have up to |Σ| children. Like CS 225\'s B-trees (lecture 18), wide nodes keep the tree shallow: height = word length, independent of n.',
+  cs225: 'A trie is a tree whose nodes have up to |Σ| children. Like CS 225\'s B-trees, wide nodes keep the tree shallow: height = word length, independent of n.',
   stages: [
     { title: 'Practice', items: [
       [14, 'Longest Common Prefix', 'E', 'Vertical scan works; a trie follows single-child nodes.', 'trie'],

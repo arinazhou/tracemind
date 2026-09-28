@@ -52,7 +52,7 @@ return dp[n]`,
     'If greedy fails on a small example, DP is usually the fix.',
   ],
   ds: ['arrays', 'hashing'],
-  cs225: 'Memoization is a hash table (lectures 34–36) from state to answer, which is exactly what @cache builds.',
+  cs225: 'Memoization is a hash table from state to answer, which is exactly what @cache builds.',
   stages: [
     { title: '1-D warm up', items: [
       [70, 'Climbing Stairs', 'E', 'dp[i] = dp[i − 1] + dp[i − 2].', '1-D'],

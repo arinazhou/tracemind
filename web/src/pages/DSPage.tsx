@@ -1,5 +1,5 @@
 import { CodeView } from '../components/CodeView'
-import { CS225_SLIDES } from '../learn/dataStructures'
+import { LectureLinks } from '../components/LectureLinks'
 import { DATA_STRUCTURES, dsById, patternById } from '../learn'
 import { catColors } from '../theme'
 import { LearnTrees } from './LearnTrees'
@@ -7,7 +7,14 @@ import { LearnTrees } from './LearnTrees'
 export function DSPage({ id }: { id: string }) {
   const d = dsById(id)
   if (!d) return <p>Unknown data structure.</p>
-  if (d.id === 'trees') return <LearnTrees />
+  if (d.id === 'trees') {
+    return (
+      <>
+        <LearnTrees />
+        <div className="lesson" style={{ marginTop: 26 }}><LectureLinks lectures={d.lectures} /></div>
+      </>
+    )
+  }
   const col = catColors(d.hue)
   const i = DATA_STRUCTURES.indexOf(d)
 
@@ -50,14 +57,7 @@ export function DSPage({ id }: { id: string }) {
             })}
           </div>
         </div>
-        <div className="card panel">
-          <div className="panel-title">CS 225 lecture slides (Spring 2024)</div>
-          <ul className="slide-links">
-            {d.lectures.map(([title, file]) => (
-              <li key={file}><a className="lc-link" href={`${CS225_SLIDES}${file}-slides.pdf`} target="_blank" rel="noreferrer">{title} ↗</a></li>
-            ))}
-          </ul>
-        </div>
+        <LectureLinks lectures={d.lectures} />
       </div>
     </div>
   )

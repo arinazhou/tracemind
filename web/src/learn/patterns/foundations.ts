@@ -45,7 +45,7 @@ for item in items:
     'Longest Consecutive Sequence: only start counting from x when x − 1 is not in the set. That keeps it O(n).',
   ],
   ds: ['hashing', 'arrays'],
-  cs225: 'Hash tables (lectures 34–36): a hash function maps keys to buckets, and collisions are handled by separate chaining or open addressing (linear probing, double hashing). Keeping the load factor α = n/m bounded, by resizing, keeps operations O(1) on average under the simple uniform hashing assumption. Python\'s dict uses open addressing.',
+  cs225: 'Hash tables: a hash function maps keys to buckets, and collisions are handled by separate chaining or open addressing (linear probing, double hashing). Keeping the load factor α = n/m bounded, by resizing, keeps operations O(1) on average under the simple uniform hashing assumption. Python\'s dict uses open addressing.',
   stages: [
     { title: 'Warm up', items: [
       [217, 'Contains Duplicate', 'E', 'Add to a set; if it is already there, return True.', 'set'],
@@ -114,7 +114,7 @@ for read in range(len(nums)):
     'If you can\'t justify a move with "this index can never be in the answer", two pointers probably isn\'t the tool.',
   ],
   ds: ['arrays'],
-  cs225: 'Array lists (lecture 5) give O(1) access by index, which is what makes jumping pointers free. The same trick on a linked list needs fast/slow pointers instead.',
+  cs225: 'Array lists give O(1) access by index, which is what makes jumping pointers free. The same trick on a linked list needs fast/slow pointers instead.',
   stages: [
     { title: 'Warm up', items: [
       [125, 'Valid Palindrome', 'E', 'Converge, skipping non-alphanumeric characters.', 'converging'],
@@ -178,7 +178,7 @@ for right, x in enumerate(s):
     'Minimum Window Substring: track "need" counts and how many characters are fully satisfied.',
   ],
   ds: ['arrays', 'hashing', 'stacks-queues'],
-  cs225: 'Amortized analysis (lecture 6): the inner while looks nested, but left only moves forward. That\'s the same argument that makes array-list doubling O(1) per append.',
+  cs225: 'Amortized analysis: the inner while looks nested, but left only moves forward. That\'s the same argument that makes array-list doubling O(1) per append.',
   stages: [
     { title: 'Fixed windows', items: [
       [643, 'Maximum Average Subarray I', 'E', 'Fixed template; divide by k at the end.', 'fixed'],
@@ -310,7 +310,7 @@ return lo                       # the first value where feasible is True`,
     'Python: bisect_left(a, x) is the first index with a[i] ≥ x, and bisect_right the first with a[i] > x.',
   ],
   ds: ['arrays', 'balanced-trees'],
-  cs225: 'BST search (lectures 11–12) is binary search on a tree: O(h). Balanced trees like AVL (lectures 13–16) guarantee h = O(log n), and B-trees (lectures 18–19) put many keys in each node to keep disk searches shallow.',
+  cs225: 'BST search is binary search on a tree: O(h). Balanced trees like AVL guarantee h = O(log n), and B-trees put many keys in each node to keep disk searches shallow.',
   stages: [
     { title: 'Warm up', items: [
       [704, 'Binary Search', 'E', 'Exact-match template.', 'exact'],

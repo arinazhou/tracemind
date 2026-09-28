@@ -21,7 +21,7 @@ connection · a staged practice list (easy → medium → hard) with hints.
 **Data structures: the CS 225 reference.** Short pages for arrays, linked
 lists, stacks & queues, trees & BSTs (a full interactive lesson), balanced
 trees, heaps, hash tables, disjoint sets and graphs: the Python toolkit,
-operation costs, the key CS 225 ideas, links to the CS 225 lecture slides,
+operation costs, the key CS 225 ideas, links to CS 225's annotated lecture notes,
 and which interview patterns use each one.
 
 **Code Visualizer: if it runs, it visualizes.** Paste any Python (a plain
@@ -82,5 +82,5 @@ cd web && npm run check     # every hand-made animation vs. the real Python
 
 References: [Hello Interview](https://www.hellointerview.com/learn/code) (pattern
 curriculum) and UIUC CS 225's
-[lectures](https://courses.grainger.illinois.edu/cs225/sp2024/pages/lectures.html)
+[lectures, Spring 2026](https://courses.grainger.illinois.edu/cs225/sp2026/pages/lectures.html)
 (data structures).

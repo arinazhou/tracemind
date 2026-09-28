@@ -44,7 +44,7 @@ export interface DataStructure {
   /** [operation, cost, note] */
   ops: [string, string, string][]
   ideas: string[]
-  /** CS 225 (Spring 2024) lectures: [title, slide file stem]. */
+  /** CS 225 (Spring 2026) lectures: [title, slide file stem]; annotated = stem + '-annotated'. */
   lectures: [string, string][]
   patterns: string[]
   /** A custom page replaces the generic layout (e.g. trees). */
