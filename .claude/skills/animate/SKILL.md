@@ -12,8 +12,11 @@ all derived from it, so the tracer is the only file you write.
 
 ## 1. Gather inputs
 
-- Problem: find `$ARGUMENTS` in `web/src/data/catalog.ts` (title, slug, category).
-  If it's missing, add it to the best-fitting category first.
+- Problem: find `$ARGUMENTS` in the lesson files `web/src/learn/patterns/*.ts` (each
+  pattern's `stages`). If it's missing, add a row to the best-fitting pattern first.
+- Note: every problem can already be *auto*-visualized in the Code Lab (generic
+  `sys.settrace` tracer). Write a hand-made tracer only when a custom picture
+  (graph layout, bars, water level) teaches noticeably more.
 - Solution, in this order:
   1. The user's saved code: `curl -s localhost:8000/api/progress/$ARGUMENTS` → `.solution`
      (if the server is down: `sqlite3 server/tracemind.db "select solution from progress where num=$ARGUMENTS"`).

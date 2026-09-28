@@ -2,23 +2,22 @@ import { useSyncExternalStore } from 'react'
 
 export type Status = 'todo' | 'learning' | 'solved' | 'review'
 
-export const STATUSES: { id: Status; label: string }[] = [
-  { id: 'todo', label: 'To do' },
-  { id: 'learning', label: 'Learning' },
-  { id: 'solved', label: 'Solved' },
-  { id: 'review', label: 'Review again' },
-]
-
 export interface Entry {
   status: Status
   notes: string
   solution: string
+  /** YYYY-MM-DD the problem was finished ('' if not done). */
+  solvedAt: string
   updatedAt: number
   solvedCount: number
 }
 
+export const today = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 type State = Record<number, Entry>
-interface Event { num: number; kind: 'status' | 'solution'; value: string; at: number }
 
 /**
  * connecting/synced/saving/offline: running with the FastAPI server (./dev.sh).
@@ -32,12 +31,10 @@ export const HOSTED = import.meta.env.VITE_STATIC === '1'
 // With a server, it is the source of truth and localStorage is an offline cache;
 // edits made while offline are merged back on reconnect (newer updatedAt wins).
 const KEY = 'tracemind:progress:v1'
-const EVENTS_KEY = 'tracemind:activity:v1'
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
 let state: State = read(KEY, {})
-let events: Event[] = read(EVENTS_KEY, [])
 let sync: SyncState = HOSTED ? 'local' : 'connecting'
 const inflight = new Map<number, ReturnType<typeof setTimeout>>()
 const pendingPatches = new Map<number, Partial<Entry>>()
@@ -53,7 +50,6 @@ function read<T>(key: string, fallback: T): T {
 function persist() {
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
-    localStorage.setItem(EVENTS_KEY, JSON.stringify(events))
   } catch {
     // storage full or blocked: keep the in-memory copy
   }
@@ -88,19 +84,19 @@ export function reconnectIfOffline() {
   if (sync === 'offline') connect()
 }
 
-export const blankEntry = (): Entry => ({ status: 'todo', notes: '', solution: '', updatedAt: 0, solvedCount: 0 })
+export const blankEntry = (): Entry => ({ status: 'todo', notes: '', solution: '', solvedAt: '', updatedAt: 0, solvedCount: 0 })
 
-export function update(num: number, patch: Partial<Pick<Entry, 'status' | 'notes' | 'solution'>>) {
-  const prev = state[num] ?? blankEntry()
+export function update(num: number, patch: Partial<Pick<Entry, 'status' | 'notes' | 'solution' | 'solvedAt'>>) {
+  const prev = { ...blankEntry(), ...state[num] }
+  // done ⇔ has a date: stamp today when marking done, clear it when un-marking
+  if (patch.status === 'solved' && !prev.solvedAt && patch.solvedAt === undefined) patch = { ...patch, solvedAt: today() }
+  if (patch.status === 'todo') patch = { ...patch, solvedAt: '' }
   const now = Date.now()
   const solvedNow = patch.status === 'solved' && prev.status !== 'solved'
   state = {
     ...state,
     [num]: { ...prev, ...patch, updatedAt: now, solvedCount: prev.solvedCount + (solvedNow ? 1 : 0) },
   }
-  // local activity log (mirrors the server's), used when there is no server
-  if (patch.status && patch.status !== prev.status) events = [...events, { num, kind: 'status', value: patch.status, at: now }]
-  if (patch.solution !== undefined && !prev.solution && patch.solution) events = [...events, { num, kind: 'solution', value: '', at: now }]
   persist()
   emit()
   if (HOSTED) return
@@ -144,41 +140,13 @@ export function useSync(): SyncState {
   return useSyncExternalStore(subscribe, () => sync)
 }
 
-// ---------------------------------------------------------------- activity
-
-export interface DayActivity { day: string; count: number; solved: number }
-
-const localDay = (ms: number) => {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-export async function fetchActivity(): Promise<DayActivity[]> {
-  if (!HOSTED && sync !== 'offline') {
-    try {
-      return await api(`/activity?tz_offset=${new Date().getTimezoneOffset()}`)
-    } catch {
-      // fall through to the local log
-    }
-  }
-  const byDay = new Map<string, DayActivity>()
-  for (const e of events) {
-    const day = localDay(e.at)
-    const d = byDay.get(day) ?? { day, count: 0, solved: 0 }
-    d.count++
-    if (e.kind === 'status' && e.value === 'solved') d.solved++
-    byDay.set(day, d)
-  }
-  return [...byDay.values()]
-}
-
 // ---------------------------------------------------------------- backup
 
 export function exportBackup(): string {
-  return JSON.stringify({ app: 'tracemind', version: 1, exportedAt: new Date().toISOString(), progress: state, activity: events }, null, 2)
+  return JSON.stringify({ app: 'tracemind', version: 1, exportedAt: new Date().toISOString(), progress: state }, null, 2)
 }
 
-/** Merge a backup file: per problem, the newer edit wins; activity is unioned. */
+/** Merge a backup file: per problem, the newer edit wins. */
 export function importBackup(text: string): number {
   const data = JSON.parse(text)
   if (data?.app !== 'tracemind' || typeof data.progress !== 'object') throw new Error('Not a Tracemind backup file.')
@@ -190,9 +158,6 @@ export function importBackup(text: string): number {
       merged++
     }
   }
-  const seen = new Set(events.map((e) => `${e.num}|${e.kind}|${e.at}`))
-  const incoming = (Array.isArray(data.activity) ? data.activity : []) as Event[]
-  events = [...events, ...incoming.filter((e) => !seen.has(`${e.num}|${e.kind}|${e.at}`))].sort((a, b) => a.at - b.at)
   state = next
   persist()
   emit()
@@ -221,6 +186,6 @@ export async function analyzeCode(code: string): Promise<Analysis> {
       // fall back to the browser
     }
   }
-  const { analyzeInBrowser } = await import('../analyzer/browserAnalyzer')
-  return analyzeInBrowser(code)
+  const { callPython } = await import('../lab/pyWorker')
+  return JSON.parse(await callPython('analyze_json', code))
 }

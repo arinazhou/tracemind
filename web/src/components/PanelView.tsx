@@ -41,6 +41,7 @@ function ArrayView({ p }: { p: ArrayPanel }) {
             <div className={`cell${tc(p.tones?.[i])}`}>{v}</div>
           )}
           <div className="arr-idx">{i}</div>
+          {p.arrows && i < p.values.length - 1 && <span className="arr-arrow" aria-hidden="true">→</span>}
         </div>
       ))}
       {p.values.length === 0 && <span className="empty">empty</span>}

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS progress (
     status       TEXT    NOT NULL DEFAULT 'todo',
     notes        TEXT    NOT NULL DEFAULT '',
     solution     TEXT    NOT NULL DEFAULT '',
+    solved_at    TEXT    NOT NULL DEFAULT '',
     updated_at   INTEGER NOT NULL DEFAULT 0,
     solved_count INTEGER NOT NULL DEFAULT 0
 );
@@ -44,6 +45,9 @@ def connect():
 def init() -> None:
     with connect() as c:
         c.executescript(SCHEMA)
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(progress)")}
+        if "solved_at" not in cols:  # databases created before the tracker had dates
+            c.execute("ALTER TABLE progress ADD COLUMN solved_at TEXT NOT NULL DEFAULT ''")
 
 
 def now_ms() -> int:
@@ -55,6 +59,7 @@ def row_to_entry(r: sqlite3.Row) -> dict:
         "status": r["status"],
         "notes": r["notes"],
         "solution": r["solution"],
+        "solvedAt": r["solved_at"],
         "updatedAt": r["updated_at"],
         "solvedCount": r["solved_count"],
     }
@@ -76,17 +81,21 @@ def update_entry(num: int, patch: dict) -> dict:
     ts = now_ms()
     with connect() as c:
         r = c.execute("SELECT * FROM progress WHERE num = ?", (num,)).fetchone()
-        prev = row_to_entry(r) if r else {"status": "todo", "notes": "", "solution": "", "updatedAt": 0, "solvedCount": 0}
+        prev = row_to_entry(r) if r else {"status": "todo", "notes": "", "solution": "", "solvedAt": "", "updatedAt": 0, "solvedCount": 0}
         nxt = {**prev, **{k: v for k, v in patch.items() if v is not None}, "updatedAt": ts}
+        if patch.get("status") == "solved" and not prev["solvedAt"] and patch.get("solvedAt") is None:
+            nxt["solvedAt"] = time.strftime("%Y-%m-%d")
+        if patch.get("status") == "todo":
+            nxt["solvedAt"] = ""
         if patch.get("status") == "solved" and prev["status"] != "solved":
             nxt["solvedCount"] = prev["solvedCount"] + 1
         c.execute(
-            """INSERT INTO progress (num, status, notes, solution, updated_at, solved_count)
-               VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO progress (num, status, notes, solution, solved_at, updated_at, solved_count)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(num) DO UPDATE SET status = excluded.status, notes = excluded.notes,
-                 solution = excluded.solution, updated_at = excluded.updated_at,
-                 solved_count = excluded.solved_count""",
-            (num, nxt["status"], nxt["notes"], nxt["solution"], nxt["updatedAt"], nxt["solvedCount"]),
+                 solution = excluded.solution, solved_at = excluded.solved_at,
+                 updated_at = excluded.updated_at, solved_count = excluded.solved_count""",
+            (num, nxt["status"], nxt["notes"], nxt["solution"], nxt["solvedAt"], nxt["updatedAt"], nxt["solvedCount"]),
         )
         for kind in ("status", "solution"):
             if kind in patch and patch[kind] is not None and patch[kind] != prev[kind]:
@@ -106,9 +115,9 @@ def import_entries(entries: dict[int, dict]) -> int:
             if r and r["updated_at"] >= e.get("updatedAt", 0):
                 continue
             c.execute(
-                """INSERT OR REPLACE INTO progress (num, status, notes, solution, updated_at, solved_count)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (num, e.get("status", "todo"), e.get("notes", ""), e.get("solution", ""),
+                """INSERT OR REPLACE INTO progress (num, status, notes, solution, solved_at, updated_at, solved_count)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (num, e.get("status", "todo"), e.get("notes", ""), e.get("solution", ""), e.get("solvedAt", ""),
                  e.get("updatedAt", 0), e.get("solvedCount", 0)),
             )
             imported += 1

@@ -25,6 +25,29 @@ def test_progress_roundtrip(client):
     assert e["solvedCount"] == 2 and e["notes"] == "kahn + cycle check"
 
 
+def test_done_date(client, tmp_path):
+    e = client.put("/api/progress/41", json={"status": "solved"}).json()
+    assert len(e["solvedAt"]) == 10                      # stamped with today's date
+    e = client.put("/api/progress/41", json={"solvedAt": "2026-09-01"}).json()
+    assert e["solvedAt"] == "2026-09-01" and e["status"] == "solved"
+    e = client.put("/api/progress/41", json={"status": "todo"}).json()
+    assert e["solvedAt"] == ""
+    assert client.put("/api/progress/41", json={"solvedAt": "yesterday"}).status_code == 422
+
+
+def test_migrates_old_database(tmp_path, monkeypatch):
+    import sqlite3
+    from app import db
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE progress (num INTEGER PRIMARY KEY, status TEXT NOT NULL DEFAULT 'todo', notes TEXT NOT NULL DEFAULT '', solution TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL DEFAULT 0, solved_count INTEGER NOT NULL DEFAULT 0)")
+    old.execute("INSERT INTO progress (num, status) VALUES (207, 'solved')")
+    old.commit(); old.close()
+    monkeypatch.setattr(db, "DB_PATH", path)
+    db.init()
+    assert db.get_entry(207)["solvedAt"] == "" and db.get_entry(207)["status"] == "solved"
+
+
 def test_rejects_bad_status(client):
     assert client.put("/api/progress/1", json={"status": "done"}).status_code == 422
 

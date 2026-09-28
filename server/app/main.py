@@ -27,6 +27,7 @@ class EntryPatch(BaseModel):
     status: Status | None = None
     notes: str | None = Field(default=None, max_length=100_000)
     solution: str | None = Field(default=None, max_length=50_000)
+    solvedAt: str | None = Field(default=None, pattern=r"^(\d{4}-\d{2}-\d{2})?$")
 
 
 class AnalyzeRequest(BaseModel):

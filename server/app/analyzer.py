@@ -12,6 +12,7 @@ lowers the confidence instead of pretending.
 from __future__ import annotations
 
 import ast
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -119,6 +120,21 @@ def is_const(node: ast.AST, consts: set[str]) -> bool:
     return False
 
 
+def grid_symbol(node: ast.AST) -> str | None:
+    """m for grid rows, n for grid columns, None if the expression isn't a grid dimension."""
+    ids = names_in(node)
+    src = ast.unparse(node)
+    if ids & COL_NAMES or "[0])" in src:
+        return "n"
+    if ids & ROW_NAMES:
+        return "m"
+    if isinstance(node, ast.Call) and call_name(node) == "len" and node.args:
+        arg = node.args[0]
+        if isinstance(arg, ast.Name) and arg.id in {"grid", "matrix", "board", "mat"}:
+            return "m"
+    return None
+
+
 def size_symbol(node: ast.AST) -> str:
     """Guess which input dimension an expression measures: m (rows) or n."""
     ids = names_in(node)
@@ -185,7 +201,8 @@ class FunctionAnalyzer:
         self.worklists: set[str] = set()
         self.containers: set[str] = set()  # names bound to growable containers
         self.list_names: set[str] = set()
-        self.params = {a.arg for a in fn.args.args if a.arg != "self"}
+        self.params = {a.arg for a in fn.args.args if a.arg != "self"} | module.outer_params(fn)
+        self.aliases: dict[str, str] = {}  # n = len(nums)  ->  n: nums
         self.in_worklist = False
         self.self_calls = 0
         self.space = ONE
@@ -217,11 +234,27 @@ class FunctionAnalyzer:
             self.track_assign(s, mult)
         return self.expr_cost(s, mult, s)
 
+    def sym(self, node: ast.AST) -> str:
+        """Symbol for the size an expression measures: one letter per input parameter."""
+        g = grid_symbol(node)
+        if g:
+            return g
+        for name in names_in(node):
+            src = self.aliases.get(name, name)
+            if src in self.params:
+                return self.mod.symbol(src)
+        return "n"
+
     def track_assign(self, s: ast.stmt, mult: Cost):
         targets = s.targets if isinstance(s, ast.Assign) else [s.target]
         value = s.value
         if value is None:
             return
+        pairs = list(zip(targets[0].elts, value.elts)) if (
+            isinstance(targets[0], ast.Tuple) and isinstance(value, ast.Tuple)) else [(t, value) for t in targets]
+        for t, v in pairs:
+            if isinstance(t, ast.Name) and call_name(v) == "len" and v.args and isinstance(v.args[0], ast.Name):
+                self.aliases[t.id] = v.args[0].id
         names = [t.id for t in targets if isinstance(t, ast.Name)]
         empty_container = isinstance(value, (ast.List, ast.Set, ast.Dict)) and not getattr(value, "elts", getattr(value, "keys", None))
         if is_const(value, self.consts) and not empty_container:
@@ -243,7 +276,7 @@ class FunctionAnalyzer:
         if isinstance(v, ast.BinOp) and isinstance(v.op, ast.Mult):
             seq, k = (v.left, v.right) if isinstance(v.left, (ast.List, ast.Constant)) else (v.right, v.left)
             if isinstance(seq, (ast.List, ast.Constant)) and not is_const(k, self.consts):
-                return Cost.of(size_symbol(k))
+                return Cost.of(self.sym(k))
         if isinstance(v, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
             inner = v.elt if not isinstance(v, ast.DictComp) else v.value
             c = ONE
@@ -258,8 +291,8 @@ class FunctionAnalyzer:
 
     def iter_symbol(self, it: ast.AST) -> str:
         if isinstance(it, ast.Call) and call_name(it) == "range" and it.args:
-            return size_symbol(it.args[-1] if len(it.args) == 1 else it.args[1])
-        return size_symbol(it)
+            return self.sym(it.args[-1] if len(it.args) == 1 else it.args[1])
+        return self.sym(it)
 
     # -- loops
     def for_loop(self, s: ast.For, mult: Cost) -> Cost:
@@ -269,6 +302,9 @@ class FunctionAnalyzer:
             isinstance(it, ast.Call) and call_name(it) == "range" and all(is_const(a, self.consts) for a in it.args)
         ):
             factor, why = ONE, "constant-size loop (e.g. 4 directions): O(1) per visit"
+        elif self.in_worklist and isinstance(it, ast.Call) and call_name(it) == "range" and len(it.args) == 1 \
+                and call_name(it.args[0]) == "len" and names_in(it.args[0]) & (self.worklists | WORKLIST_NAMES):
+            factor, why = ONE, "level snapshot: splits the queue into levels, but every node is still popped once overall"
         elif self.in_worklist and isinstance(it, ast.Subscript):
             factor, why = Cost(graph=True), f"neighbors of the popped node: each edge is scanned once overall → amortized O(E)"
         else:
@@ -283,6 +319,20 @@ class FunctionAnalyzer:
 
     def while_loop(self, s: ast.While, mult: Cost) -> Cost:
         test_names = names_in(s.test)
+        t = s.test
+        if isinstance(t, ast.Compare) and isinstance(t.left, ast.Subscript) and isinstance(t.left.value, ast.Name) \
+                and len(t.comparators) == 1 and ast.unparse(t.comparators[0]) == ast.unparse(t.left.slice):
+            parent = t.left.value.id
+            compresses = any(isinstance(n, ast.Assign) and any(isinstance(x, ast.Subscript) and isinstance(x.value, ast.Name)
+                             and x.value.id == parent for x in n.targets) for b in s.body for n in ast.walk(b))
+            if compresses:
+                self.r.note(s, mult, f"union-find find(): with path compression each call is amortized O(α(n)), "
+                                     f"effectively constant (CS 225 disjoint sets)")
+                return cmax(mult, self.block(s.body, mult))
+            inner = mult * N
+            self.r.note(s, inner, "union-find find() without path compression: a chain can be O(n) long "
+                                  "(add parent[x] = parent[parent[x]] to fix it)")
+            return cmax(inner, self.block(s.body, inner))
         worklist = test_names & (self.worklists | WORKLIST_NAMES)
         if worklist and pops_in(s.body):
             stack_like = any(n in {"stack", "st"} for n in worklist) or not any(
@@ -404,6 +454,25 @@ class ModuleInfo:
                 self.functions[n.name] = n
         self.cache: dict[str, tuple[Cost, bool]] = {}
         self.amortized_total = ONE
+        self.symbols: dict[str, str] = {}
+        self.parents: dict[ast.AST, ast.FunctionDef] = {}
+        for f in self.functions.values():
+            for inner in ast.walk(f):
+                if inner is not f and isinstance(inner, ast.FunctionDef):
+                    self.parents.setdefault(inner, f)
+
+    def symbol(self, param: str) -> str:
+        if param not in self.symbols:
+            letters = [x for x in ("n", "m", "k", "p", "q") if x not in self.symbols.values()]
+            self.symbols[param] = letters[0] if letters else "n"
+        return self.symbols[param]
+
+    def outer_params(self, fn: ast.FunctionDef) -> set[str]:
+        out, f = set(), self.parents.get(fn)
+        while f is not None:
+            out |= {a.arg for a in f.args.args if a.arg != "self"}
+            f = self.parents.get(f)
+        return out
 
     def summary(self, name: str) -> tuple[Cost, bool]:
         """(time cost of one top-level call, whether it's an amortized traversal)."""
@@ -440,6 +509,9 @@ def recursion_cost(fn: ast.FunctionDef, fa: FunctionAnalyzer, body: Cost, r: Rep
         return body, False, ONE
     src = ast.unparse(fn)
     params = [a.arg for a in fn.args.args if a.arg != "self"]
+    if fn.name == "find" and re.search(r"(\w+)\[\w+\]\s*=\s*(self\.)?find\(", src):
+        r.note(fn, ONE, "union-find find() with path compression: amortized O(α(n)), effectively constant (CS 225 disjoint sets)")
+        return ONE, False, LOG
     if memoized(fn):
         states = Cost(poly=(("n", max(1, len([p for p in params if p not in {"memo"}]))),))
         total = states * body
@@ -500,6 +572,9 @@ def analyze(code: str) -> dict:
     if report.space.key() == ONE.key():
         report.findings.append(Finding(fn.lineno, "O(1)", "only a fixed number of variables — no structure grows with the input"))
 
+    if len(mod.symbols) >= 2:
+        legend = ", ".join(f"{sym} = size of {name}" for name, sym in mod.symbols.items())
+        report.findings.append(Finding(fn.lineno, str(time), f"symbols: {legend}"))
     confidence = "high" if report.guesses == 0 else "medium" if report.guesses == 1 else "low"
     findings = sorted({(f.line, f.message): f for f in report.findings}.values(), key=lambda f: f.line)
     return {

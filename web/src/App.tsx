@@ -1,12 +1,13 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { ANIMATIONS } from './animations'
-import { CATEGORIES } from './data/catalog'
 import { BackupButtons } from './components/BackupButtons'
 import { connect, reconnectIfOffline, useProgress, useSync } from './data/progress'
-import { CategoryPage } from './pages/CategoryPage'
+import { DATA_STRUCTURES, PATTERNS, patternProblems } from './learn'
+import { DSPage } from './pages/DSPage'
 import { Home } from './pages/Home'
-import { LearnTrees } from './pages/LearnTrees'
+import { LabPage } from './pages/LabPage'
+import { PatternPage } from './pages/PatternPage'
 import { ProblemPage } from './pages/ProblemPage'
+import { TrackerPage } from './pages/TrackerPage'
 import { catColors } from './theme'
 
 function useHash() {
@@ -22,6 +23,11 @@ const SYNC_LABEL = {
   saving: 'Saving…',
   offline: 'Offline · saved in browser',
   local: 'Saved in this browser',
+}
+
+// links from before the Learn / CS 225 restructure
+const LEGACY: Record<string, string> = {
+  'binary-tree': '#/ds/trees', 'dfs-backtracking': '#/learn/backtracking', trees: '#/ds/trees',
 }
 
 export function App() {
@@ -41,13 +47,17 @@ export function App() {
     return () => window.removeEventListener('focus', reconnectIfOffline)
   }, [])
 
-  let page = <Home />
-  if (kind === 'c' && arg) page = <CategoryPage id={arg} />
-  if (kind === 'learn' && arg === 'trees') page = <LearnTrees />
-  if (kind === 'p' && arg) page = <ProblemPage num={+arg} tab={params.get('tab')} step={Number(params.get('step') ?? 1) - 1} />
+  useEffect(() => {
+    if ((kind === 'c' || kind === 'learn') && arg && LEGACY[arg]) window.location.replace(LEGACY[arg])
+    else if (kind === 'c' && arg) window.location.replace(`#/learn/${arg}`)
+  }, [kind, arg])
 
-  const activeCat = kind === 'c' ? arg : undefined
-  const animated = CATEGORIES.flatMap((c) => c.problems).filter((p) => ANIMATIONS[p.num])
+  let page = <Home />
+  if (kind === 'learn' && arg) page = <PatternPage id={arg} />
+  if (kind === 'ds' && arg) page = <DSPage id={arg} />
+  if (kind === 'lab') page = <LabPage />
+  if (kind === 'tracker') page = <TrackerPage />
+  if (kind === 'p' && arg) page = <ProblemPage num={+arg} tab={params.get('tab')} step={Number(params.get('step') ?? 1) - 1} />
 
   return (
     <div className="shell">
@@ -59,40 +69,36 @@ export function App() {
               <circle cx="20" cy="5" r="2.2" fill="currentColor" />
             </svg>
           </span>
-          <span>
-            Tracemind
-            <span className="brand-sub">see your code think</span>
-          </span>
+          <span>Tracemind<span className="brand-sub">see your code think</span></span>
         </a>
-        <a href="#/" className={`nav-item${!kind ? ' on' : ''}`}>Dashboard</a>
-        <div className="nav-label">Learn</div>
-        <a href="#/learn/trees" className={`nav-item${kind === 'learn' ? ' on' : ''}`}>
-          <span className="nav-dot" style={{ background: 'hsl(140 60% 72%)' }} />Trees
-          <span className="nav-count">new</span>
-        </a>
-        <div className="nav-label">Animated</div>
-        {animated.map((p) => (
-          <a key={p.num} href={`#/p/${p.num}`} className={`nav-item${kind === 'p' && +arg === p.num ? ' on' : ''}`}>
-            <span className="faint" style={{ fontSize: 12, width: 28 }}>{p.num}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-          </a>
-        ))}
-        <div className="nav-label">Patterns</div>
-        {CATEGORIES.map((c) => {
-          const done = c.problems.filter((p) => progress[p.num]?.status === 'solved').length
+        <div className="nav-top">
+          <a href="#/" className={`nav-item${!kind ? ' on' : ''}`}>Home</a>
+          <a href="#/lab" className={`nav-item${kind === 'lab' ? ' on' : ''}`}>▶ Code Lab</a>
+          <a href="#/tracker" className={`nav-item${kind === 'tracker' ? ' on' : ''}`}>✓ Tracker</a>
+        </div>
+
+        <div className="nav-label">Learn · interview patterns</div>
+        {PATTERNS.map((p, i) => {
+          const nums = [...new Set(patternProblems(p))]
+          const d = nums.filter((n) => progress[n]?.status === 'solved').length
           return (
-            <a key={c.id} href={`#/c/${c.id}`} className={`nav-item${activeCat === c.id ? ' on' : ''}`}>
-              <span className="nav-dot" style={{ background: catColors(c.hue).dot }} />
-              {c.title}
-              <span className="nav-count">{done}/{c.problems.length}</span>
+            <a key={p.id} href={`#/learn/${p.id}`} className={`nav-item${kind === 'learn' && arg === p.id ? ' on' : ''}`}>
+              <span className="nav-num">{i + 1}</span>
+              <span className="nav-dot" style={{ background: catColors(p.hue).dot }} />
+              {p.title}
+              <span className="nav-count">{d}/{nums.length}</span>
             </a>
           )
         })}
-        <button
-          className={`sync sync-${sync}`}
-          onClick={() => sync === 'offline' && connect()}
-          title={sync === 'offline' ? 'Server not reachable. Click to retry.' : undefined}
-        >
+
+        <div className="nav-label">Data structures · CS 225</div>
+        {DATA_STRUCTURES.map((d) => (
+          <a key={d.id} href={`#/ds/${d.id}`} className={`nav-item${kind === 'ds' && arg === d.id ? ' on' : ''}`}>
+            <span className="nav-dot" style={{ background: catColors(d.hue).dot }} />{d.title}
+          </a>
+        ))}
+
+        <button className={`sync sync-${sync}`} onClick={() => sync === 'offline' && connect()} title={sync === 'offline' ? 'Server not reachable. Click to retry.' : undefined}>
           <i />{SYNC_LABEL[sync]}
         </button>
         <BackupButtons />

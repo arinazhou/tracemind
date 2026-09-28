@@ -28,6 +28,8 @@ export interface ArrayPanel extends PanelBase {
   window?: [number, number]
   /** Render values as bar heights (e.g. container with most water). */
   bars?: boolean
+  /** Draw → between cells (linked lists). */
+  arrows?: boolean
 }
 
 export interface GraphNode {

@@ -1,122 +1,43 @@
-import { useState } from 'react'
 import { ANIMATIONS } from '../animations'
-import { HOSTED, analyzeCode, update, useProgress, type Analysis } from '../data/progress'
-import { CodeView } from './CodeView'
+import { EXAMPLES, PROBLEMS } from '../learn'
+import { update, useProgress } from '../data/progress'
+import { CodeTracer } from './CodeTracer'
 
-const norm = (s?: string) => (s ?? '').replace(/\s+/g, '')
+/** Convert a hand-made animation's JSON input into Python call arguments. */
+function argsFromAnimation(num: number): string {
+  const anim = ANIMATIONS[num]
+  if (!anim) return ''
+  const py = (v: unknown): string => {
+    if (v === null) return 'None'
+    if (v === true) return 'True'
+    if (v === false) return 'False'
+    if (Array.isArray(v)) return `[${v.map(py).join(', ')}]`
+    if (typeof v === 'object' && v && '__tree__' in v) return `tree(${py((v as { __tree__: unknown }).__tree__)})`
+    return JSON.stringify(v)
+  }
+  return anim.pyArgs(anim.defaultInput).map(py).join(', ')
+}
 
 export function MySolution({ num }: { num: number }) {
-  const progress = useProgress()
-  const code = progress[num]?.solution ?? ''
+  const code = useProgress()[num]?.solution ?? ''
+  const pattern = PROBLEMS.get(num)?.pattern
+  const example = pattern && EXAMPLES[pattern.id]?.num === num ? EXAMPLES[pattern.id] : undefined
   const anim = ANIMATIONS[num]
-  const [result, setResult] = useState<Analysis | null>(null)
-  const [analyzed, setAnalyzed] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  const run = async () => {
-    setBusy(true)
-    setError('')
-    try {
-      setResult(await analyzeCode(code))
-      setAnalyzed(code)
-    } catch {
-      setError('Couldn\'t load the analyzer. Check your internet connection and try again.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== 'Tab') return
-    e.preventDefault()
-    const el = e.currentTarget
-    const { selectionStart: a, selectionEnd: b } = el
-    update(num, { solution: code.slice(0, a) + '    ' + code.slice(b) })
-    requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = a + 4 })
-  }
-
-  const tags: Record<number, string> = {}
-  result?.findings?.forEach((f) => { if (f.cost !== 'O(1)') tags[f.line] = f.cost })
-  const ref = anim?.complexity
 
   return (
-    <div className="sol-grid">
-      <div>
-        <textarea
-          className="editor"
-          value={code}
-          onChange={(e) => update(num, { solution: e.target.value })}
-          onKeyDown={onKeyDown}
-          spellCheck={false}
-          placeholder={'class Solution:\n    def solve(self, nums):\n        ...'}
-        />
-        <div className="row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-          <button className="btn primary" onClick={run} disabled={!code.trim() || busy}>
-            {busy ? 'Analyzing…' : '⚡ Analyze complexity'}
-          </button>
-          {anim && !code.trim() && (
-            <button className="btn" onClick={() => update(num, { solution: anim.code })}>Start from the reference solution</button>
-          )}
-          <span className="faint" style={{ fontSize: 12 }}>
-            {busy && HOSTED ? 'First run loads Python in your browser (a few seconds)…' : 'Autosaves · Tab inserts 4 spaces'}
-          </span>
-        </div>
-        {error && <p className="error">{error}</p>}
-      </div>
-
-      <div style={{ display: 'grid', gap: 14 }}>
-        {!result && (
-          <div className="card panel">
-            <div className="panel-title">How this works</div>
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-              The analyzer parses your Python and recognizes the building blocks of interview solutions:
-              loops over the input, constant 4-direction loops, BFS queues, amortized monotonic stacks,
-              halving (binary search), sorting and heap calls, memoized vs. branching recursion. Each
-              conclusion is pinned to the line that caused it.
-            </p>
-            {!HOSTED && (
-              <p className="muted" style={{ margin: '10px 0 0', fontSize: 14 }}>
-                Want this solution animated? In Claude Code, run <code className="kbd">/animate {num}</code>.
-              </p>
-            )}
-          </div>
+    <div>
+      <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
+        Paste your accepted LeetCode solution. It autosaves. <b>Visualize</b> runs it step by step on any input, and <b>Big-O</b> explains its complexity.
+        {!code.trim() && anim && (
+          <> <button className="hint-btn" onClick={() => update(num, { solution: anim.code })}>Start from the reference solution</button></>
         )}
-        {result && !result.ok && <div className="card panel error">{result.error}</div>}
-        {result?.ok && (
-          <>
-            <div className="card panel">
-              <div className="panel-title" style={{ justifyContent: 'space-between' }}>
-                <span>Estimate for <code>{result.function}()</code></span>
-                <span className={`conf conf-${result.confidence}`}>{result.confidence} confidence</span>
-              </div>
-              <div className="verdict">
-                <div><div className="eyebrow">Time</div><div className="cx-big">{result.time}</div></div>
-                <div><div className="eyebrow">Space</div><div className="cx-big">{result.space}</div></div>
-              </div>
-              {ref && (
-                norm(ref.time) === norm(result.time)
-                  ? <div className="compare ok">✓ Matches the reference solution's time complexity ({ref.time}).</div>
-                  : <div className="compare diff">The reference solution runs in {ref.time}. Compare the hot lines below.</div>
-              )}
-              {analyzed !== code && <p className="faint" style={{ fontSize: 12, margin: '10px 0 0' }}>You've edited the code since this analysis. Re-run it to update.</p>}
-            </div>
-            <div className="card panel">
-              <div className="panel-title">Why</div>
-              {result.findings!.map((f, i) => (
-                <div key={i} className="finding">
-                  <span className="ln-ref">line {f.line}</span>
-                  <span className="cost">{f.cost}</span>
-                  <span>{f.message}</span>
-                </div>
-              ))}
-            </div>
-            <div className="card code-card" style={{ position: 'static' }}>
-              <CodeView code={analyzed} annotations={tags} />
-            </div>
-          </>
-        )}
-      </div>
+      </p>
+      <CodeTracer
+        code={code}
+        onCodeChange={(c) => update(num, { solution: c })}
+        args={example?.args ?? argsFromAnimation(num)}
+        driver={example?.driver}
+      />
     </div>
   )
 }
