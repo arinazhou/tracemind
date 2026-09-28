@@ -159,6 +159,16 @@ def mutates_marker(body: list[ast.stmt]) -> bool:
     return False
 
 
+def swaps_in_place(body: list[ast.stmt]) -> bool:
+    """`a[i], a[j] = a[j], a[i]`: a tuple swap between two slots of the same list."""
+    for n in ast.walk(ast.Module(body=body, type_ignores=[])):
+        if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Tuple):
+            elts = n.targets[0].elts
+            if len(elts) == 2 and all(isinstance(e, ast.Subscript) for e in elts):
+                return True
+    return False
+
+
 def pushes_heap(body: list[ast.stmt]) -> bool:
     return any(call_name(n) in {"heappush", "heappushpop", "heapreplace"} for s in body for n in ast.walk(s))
 
@@ -309,6 +319,11 @@ class FunctionAnalyzer:
             body = self.block(s.body, inner)
             self.in_worklist = prev
             return cmax(inner, body)
+        if swaps_in_place(s.body) and any(isinstance(n, ast.Continue) for b in s.body for n in ast.walk(b)):
+            inner = mult * N
+            self.r.note(s, inner, "cyclic sort: each swap puts one value into its final slot and it's never moved again, "
+                                  "so swaps + index steps ≤ 2n — amortized O(n) even though `continue` revisits slots")
+            return cmax(inner, self.block(s.body, inner))
         if halves(s.body):
             inner = mult * LOG
             self.r.note(s, inner, "search space halves every iteration → O(log n) iterations")

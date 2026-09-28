@@ -104,4 +104,6 @@ export interface Animation<I = unknown> {
   complexity: Complexity
   /** Positional args for the Python method, so `npm run check` can run the real code and compare results. */
   pyArgs: (input: I) => unknown[]
+  /** Extra named inputs: shown as presets in the player, and traced by `npm run check` for line coverage. */
+  examples?: { label: string; input: I }[]
 }

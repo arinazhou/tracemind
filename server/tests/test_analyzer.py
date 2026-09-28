@@ -168,6 +168,23 @@ class Solution:
             return 0
         return 1 + max(self.maxDepth(root.left), self.maxDepth(root.right))
 """, "O(n)", "O(n)"),
+    "first_missing_positive_cyclic_sort": ("""
+class Solution(object):
+    def firstMissingPositive(self, nums):
+        length = len(nums)
+        index = 0
+        while index < length:
+            if 1 <= nums[index] <= length:
+                correct_i = nums[index] - 1
+                if nums[correct_i] != nums[index]:
+                    nums[index], nums[correct_i] = (nums[correct_i], nums[index])
+                    continue
+            index += 1
+        for i in range(length):
+            if nums[i] - 1 != i:
+                return i + 1
+        return length + 1
+""", "O(n)", "O(1)"),
     "subsets": ("""
 class Solution:
     def subsets(self, nums):
@@ -193,6 +210,13 @@ def test_known_solutions(name):
     if space:
         assert out["space"] == space, (name, out)
     assert out["findings"], "every result should explain itself"
+
+
+def test_cyclic_sort_is_explained_as_such():
+    code = CASES["first_missing_positive_cyclic_sort"][0]
+    messages = [f["message"] for f in analyze(code)["findings"]]
+    assert any("cyclic sort" in m for m in messages)
+    assert not any("two pointers" in m for m in messages)
 
 
 def test_syntax_error_is_reported():

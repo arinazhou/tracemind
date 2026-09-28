@@ -5,6 +5,7 @@
  *   3. random inputs of several sizes trace without errors
  *   4. the tracer's final `result` equals what the *real Python code* returns,
  *      on the example and on random inputs
+ * (2 counts the default input plus any `examples`.)
  * Usage: npm run check [-- <problem number>]
  */
 import { execFileSync } from 'node:child_process'
@@ -25,11 +26,13 @@ for (const [num, anim] of Object.entries(ANIMATIONS)) {
   const errors: string[] = []
   const warnings: string[] = []
   const lines = anim.code.split('\n')
-  const inputs = [anim.defaultInput, ...[4, 8, 16, 32, 64].map((n) => anim.generate(n))]
+  const named = [anim.defaultInput, ...(anim.examples ?? []).map((e) => e.input)]
+  const inputs = [...named, ...[4, 8, 16, 32, 64].map((n) => anim.generate(n))]
+  const hit = new Set<number>()
   const results: unknown[] = []
 
   inputs.forEach((input, k) => {
-    const label = k === 0 ? 'example' : `random #${k}`
+    const label = k === 0 ? 'example' : k < named.length ? `example ${k + 1}` : `random #${k - named.length + 1}`
     try {
       const steps = anim.trace(structuredClone(input))
       if (!steps.length) errors.push(`${label}: no steps`)
@@ -40,10 +43,15 @@ for (const [num, anim] of Object.entries(ANIMATIONS)) {
       const last = steps.at(-1)
       if (last?.result === undefined) errors.push(`${label}: final step has no result`)
       results.push(last?.result)
-      if (k === 0) {
-        const hit = new Set(steps.map((s) => s.line))
+      if (k < named.length) steps.forEach((s) => hit.add(s.line))
+      if (k === named.length - 1) {
+        let inDocstring = false
         lines.forEach((text, i) => {
-          if (!NOT_EXECUTABLE.test(text) && !hit.has(i + 1)) warnings.push(`line ${i + 1} is never stepped on the example: ${text.trim()}`)
+          const quotes = (text.match(/"""|'''/g) ?? []).length
+          const skip = inDocstring || quotes > 0
+          if (quotes % 2 === 1) inDocstring = !inDocstring
+          if (skip) return
+          if (!NOT_EXECUTABLE.test(text) && !hit.has(i + 1)) warnings.push(`line ${i + 1} is never stepped by any example: ${text.trim()}`)
         })
       }
     } catch (e) {
@@ -59,7 +67,7 @@ for (const [num, anim] of Object.entries(ANIMATIONS)) {
     const out = execFileSync('python3', [runner, file], { input: stdin, encoding: 'utf8' }).trim().split('\n')
     out.forEach((line, k) => {
       const want = JSON.stringify(results[k])
-      if (line !== want) errors.push(`${k === 0 ? 'example' : `random #${k}`}: python returned ${line}, tracer says ${want}`)
+      if (line !== want) errors.push(`input #${k + 1}: python returned ${line}, tracer says ${want}`)
     })
   } catch (e) {
     errors.push(`python run failed: ${e instanceof Error ? e.message.split('\n').slice(0, 6).join('\n') : e}`)

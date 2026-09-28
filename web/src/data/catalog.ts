@@ -77,6 +77,13 @@ export const CATEGORIES: Category[] = [
     [525, 'Contiguous Array', 'M'],
     [325, 'Maximum Size Subarray Sum Equals k', 'M'],
   ]),
+  cat('cyclic-sort', 'Cyclic Sort & In-place Hashing', 125, 'Values in 1..n: swap each value into slot value−1, then the first misfit is the answer. O(n) time, O(1) space.', [
+    [268, 'Missing Number', 'E'],
+    [448, 'Find All Numbers Disappeared in an Array', 'E'],
+    [442, 'Find All Duplicates in an Array', 'M'],
+    [287, 'Find the Duplicate Number', 'M'],
+    [41, 'First Missing Positive', 'H'],
+  ]),
   cat('intervals', 'Intervals', 20, 'Sort by start (or end), then merge, count overlaps, or sweep.', [
     [252, 'Meeting Rooms', 'E'],
     [253, 'Meeting Rooms II', 'M'],

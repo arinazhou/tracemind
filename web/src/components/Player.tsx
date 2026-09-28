@@ -68,6 +68,15 @@ export function Player({ anim, initialStep = 0 }: { anim: Animation; initialStep
             <button className="btn" onClick={() => rerun(defaultText)}>Reset example</button>
             <button className="btn" onClick={() => rerun(JSON.stringify(anim.generate(10)))}>Random</button>
           </div>
+          {anim.examples && (
+            <div className="row" style={{ marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
+              <span className="faint" style={{ fontSize: 12 }}>Presets:</span>
+              {anim.examples.map((e) => (
+                <button key={e.label} className="chip" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+                  onClick={() => rerun(JSON.stringify(e.input))}>{e.label}</button>
+              ))}
+            </div>
+          )}
           {'error' in result && <p className="error">{result.error}</p>}
         </div>
       </div>
