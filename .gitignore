@@ -5,3 +5,6 @@ dist
 .venv
 __pycache__
 server/*.db
+
+# Firebase emulator logs
+*-debug.log
