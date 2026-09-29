@@ -4,12 +4,35 @@ import { deleteCloudData, takeMovedIn, useSync, useUser } from '../data/progress
 
 type Tab = 'signin' | 'signup'
 
-/** Sidebar account box: sign in / out. Renders nothing until Firebase is configured. */
+const OPEN_EVENT = 'tracemind:open-signin'
+/** Open the sign-in panel from anywhere (e.g. a "Sign in" prompt on a page). */
+export const openSignIn = () => window.dispatchEvent(new Event(OPEN_EVENT))
+
+/** A prompt for signed-out visitors; hidden when signed in or when accounts are off. */
+export function SignInPrompt({ text = 'Save your progress on every device.' }: { text?: string }) {
+  const user = useUser()
+  if (!CLOUD_ENABLED || user) return null
+  return (
+    <div className="signin-prompt">
+      <span>☁️ {text} Your ✓, dates, notes and solutions follow you to your phone and laptop.</span>
+      <button className="btn primary" onClick={openSignIn}>Sign in</button>
+    </div>
+  )
+}
+
+/** Account box at the top of the sidebar: sign in / out. Renders nothing until Firebase is configured. */
 export function AccountBox() {
   const user = useUser()
   const sync = useSync()
   const [open, setOpen] = useState(false)
+  const [menu, setMenu] = useState(false)
   const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true)
+    window.addEventListener(OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_EVENT, onOpen)
+  }, [])
 
   useEffect(() => { if (user) setOpen(false) }, [user])
   useEffect(() => {
@@ -24,24 +47,27 @@ export function AccountBox() {
     return (
       <>
         <button className="account-signin" onClick={() => setOpen(true)}>
-          <b>Sign in</b> to save your progress on every device
+          <span className="account-signin-main">Sign in</span>
+          <span className="account-signin-sub">save progress on every device</span>
         </button>
         {open && <AuthModal onClose={() => setOpen(false)} />}
       </>
     )
   }
 
-  const label = user.name || user.email || 'Signed in'
+  // a name reads better than a long email; the full email shows on hover
+  const label = user.name || user.email?.split('@')[0] || 'Signed in'
   return (
     <div className="account">
-      <div className="row" style={{ gap: 8 }}>
+      <button className="account-chip" onClick={() => setMenu((m) => !m)} aria-expanded={menu} title={user.email ?? ''}>
         {user.photo
           ? <img className="avatar" src={user.photo} alt="" referrerPolicy="no-referrer" />
           : <span className="avatar">{label[0]?.toUpperCase()}</span>}
-        <span className="account-name" title={user.email ?? ''}>{label}</span>
-      </div>
+        <span className="account-name">{label}</span>
+        <span className="faint" aria-hidden="true">{menu ? '▴' : '▾'}</span>
+      </button>
       {notice && <div className="account-notice">{notice}</div>}
-      <div className="account-actions">
+      {menu && <div className="account-actions">
         <button onClick={async () => { const { signOut } = await import('../cloud/cloud'); await signOut() }}>Sign out</button>
         <span>·</span>
         <button onClick={async () => {
@@ -49,7 +75,7 @@ export function AccountBox() {
           await deleteCloudData()
           setNotice('Your records were deleted.')
         }}>Delete my data</button>
-      </div>
+      </div>}
     </div>
   )
 }

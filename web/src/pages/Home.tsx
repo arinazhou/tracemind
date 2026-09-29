@@ -1,3 +1,4 @@
+import { SignInPrompt } from '../components/Account'
 import { useProgress } from '../data/progress'
 import { DATA_STRUCTURES, PATTERNS, PROBLEMS, patternProblems } from '../learn'
 import { catColors } from '../theme'
@@ -25,6 +26,8 @@ export function Home() {
         Learn the 20 interview patterns with templates and animations, look up the data structures underneath them the
         CS 225 way, and paste any Python you write to watch it run line by line and get its Big-O.
       </p>
+
+      <SignInPrompt />
 
       <div className="hero">
         <div className="card hero-card">

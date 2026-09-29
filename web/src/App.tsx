@@ -74,6 +74,7 @@ export function App() {
           </span>
           <span>Tracemind<span className="brand-sub">see your code think</span></span>
         </a>
+        <AccountBox />
         <SearchBox />
         <div className="nav-top">
           <a href="#/" className={`nav-item${!kind ? ' on' : ''}`}>Home</a>
@@ -102,7 +103,6 @@ export function App() {
           </a>
         ))}
 
-        <AccountBox />
         <button className={`sync sync-${sync}`} onClick={() => sync === 'offline' && connect()} title={sync === 'offline' ? 'Server not reachable. Click to retry.' : undefined}>
           <i />{user && sync === 'synced' ? 'Saved to your account' : user && sync === 'offline' ? 'Offline · will sync when back' : SYNC_LABEL[sync]}
         </button>

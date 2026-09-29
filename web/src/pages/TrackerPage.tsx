@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SignInPrompt } from '../components/Account'
 import { DoneToggle } from '../components/DoneToggle'
 import { update, useProgress } from '../data/progress'
 import { PATTERNS, PROBLEMS, leetcodeUrl, patternProblems } from '../learn'
@@ -27,6 +28,7 @@ export function TrackerPage() {
       <div className="eyebrow">Tools</div>
       <h1 className="page-title">Tracker</h1>
       <p className="lede">Solve on LeetCode, then check it off here. Checking stamps today's date (you can edit it), and the note field is for the one thing you want to remember.</p>
+      <SignInPrompt text="Signed out, this list is saved only in this browser." />
       <div className="row tracker-bar">
         <b>{doneCount} / {all.length} done</b>
         <div className="tabs" style={{ margin: 0 }}>
