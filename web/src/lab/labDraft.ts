@@ -3,7 +3,14 @@ import type { WorkedExample } from '../learn/types'
 
 const KEY = 'tracemind:lab:v1'
 
-export interface LabDraft { code: string; args: string; driver: string; stdin?: string }
+export interface LabDraft {
+  code: string
+  args: string
+  driver: string
+  stdin?: string
+  /** Parameter list the args were typed for (stale args are replaced with samples). */
+  argsFor?: string
+}
 
 export function loadDraft(): LabDraft | null {
   try {

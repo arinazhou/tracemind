@@ -105,7 +105,8 @@ export function LabPage() {
         driver={draft.driver || undefined}
         stdin={draft.stdin}
         scrollOnRun
-        onRunInputs={(inputs) => { if (inputs.args !== draft.args || inputs.driver !== draft.driver || inputs.stdin !== (draft.stdin ?? '')) saveDraft({ ...draft, ...inputs }) }}
+        argsFor={draft.argsFor ?? ''}
+        onRunInputs={(inputs) => saveDraft({ ...draft, ...inputs })}
       />
     </div>
   )

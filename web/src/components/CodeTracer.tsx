@@ -16,7 +16,13 @@ interface Props {
   stdin?: string
   autoRun?: boolean
   /** Remember edits to args/driver/stdin/mode (the Code Visualizer keeps a draft). */
-  onRunInputs?: (inputs: { args: string; driver: string; stdin: string }) => void
+  onRunInputs?: (inputs: { args: string; driver: string; stdin: string; argsFor?: string }) => void
+  /**
+   * Which parameter list the initial args were written for. When the code's parameters no
+   * longer match, the args are replaced with fresh samples. Omit to trust the args for any
+   * code (lesson examples, a problem's own test case).
+   */
+  argsFor?: string
   /** Scroll to the animation after a manual run (off inside lessons). */
   scrollOnRun?: boolean
   showAnalyze?: boolean
@@ -47,7 +53,7 @@ export function looksLikeScript(code: string) {
   return false
 }
 
-export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver: initialDriver, stdin: initialStdin = '', autoRun, showAnalyze = true, onRunInputs, scrollOnRun }: Props) {
+export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver: initialDriver, stdin: initialStdin = '', autoRun, showAnalyze = true, onRunInputs, scrollOnRun, argsFor }: Props) {
   const [args, setArgs] = useState(initialArgs)
   const [driver, setDriver] = useState(initialDriver ?? '')
   const [stdin, setStdin] = useState(initialStdin)
@@ -56,7 +62,6 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
   const [touchedMode, setTouchedMode] = useState(false)
   // follow the code until the user picks a mode by hand
   useEffect(() => { if (!touchedMode && !initialDriver) setMode(looksLikeScript(code) ? 'script' : 'call') }, [code]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { onRunInputs?.({ args, driver, stdin }) }, [args, driver, stdin]) // eslint-disable-line react-hooks/exhaustive-deps
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [traced, setTraced] = useState<{ code: string; result: TraceResult; script: boolean } | null>(null)
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
@@ -68,9 +73,17 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
   const [showStdin, setShowStdin] = useState(!!initialStdin)
   const sig = signature(code)
   // pre-fill runnable sample arguments until the user types their own
-  const autoArgs = useRef(!initialArgs)
   const params = sig?.params ?? ''
-  useEffect(() => { if (autoArgs.current && mode === 'call') setArgs(sampleArgs(params)) }, [params, mode])
+  // Who the current args belong to: '*' = trusted for any code, a parameter list = typed for
+  // that function, null = our sample values. Args written for a different function are stale.
+  const argsOwner = useRef<string | null>(initialArgs ? (argsFor === undefined ? '*' : argsFor) : null)
+  useEffect(() => {
+    if (mode !== 'call' || argsOwner.current === '*' || argsOwner.current === params) return
+    argsOwner.current = null
+    setArgs(sampleArgs(params))
+  }, [params, mode])
+  const autoArgs = argsOwner.current === null
+  useEffect(() => { onRunInputs?.({ args, driver, stdin, argsFor: argsOwner.current ?? undefined }) }, [args, driver, stdin]) // eslint-disable-line react-hooks/exhaustive-deps
   const usesInput = /\binput\s*\(/.test(code)
 
   const visualize = async (manual = true) => {
@@ -168,10 +181,10 @@ export function CodeTracer({ code, onCodeChange, args: initialArgs = '', driver:
         )}
         {mode === 'call' && (
           <div className="run-how">
-            <p>🧩 <b>As a LeetCode-style function:</b> calls it with these arguments.{autoArgs.current && sig ? <span className="faint"> (Sample values filled in. Replace them with your own test case.)</span> : null}</p>
+            <p>🧩 <b>As a LeetCode-style function:</b> calls it with these arguments.{autoArgs && sig ? <span className="faint"> (Sample values filled in. Replace them with your own test case.)</span> : null}</p>
             <label className="call">
               <code>{sig ? sig.call : 'Solution().method'}(</code>
-              <input value={args} onChange={(e) => { autoArgs.current = false; setArgs(e.target.value) }} spellCheck={false}
+              <input value={args} onChange={(e) => { argsOwner.current = params; setArgs(e.target.value) }} spellCheck={false}
                 placeholder={sig?.params || 'arguments'} onKeyDown={(e) => { if (e.key === 'Enter') visualize() }} />
               <code>)</code>
             </label>

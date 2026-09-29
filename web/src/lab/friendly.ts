@@ -20,6 +20,8 @@ export function sampleArgs(params: string): string {
   return names.map((n) => SAMPLES.find(([re]) => re.test(n))?.[1] ?? '1').join(', ')
 }
 
+const article = (t: string) => ({ int: 'a number', float: 'a number', str: 'a string', list: 'a list' }[t] ?? t)
+
 /** Turn a raw Python error into what to do next. */
 export function explainError(raw: string, mode: 'script' | 'call' | 'driver'): string {
   let m: RegExpMatchArray | null
@@ -27,6 +29,12 @@ export function explainError(raw: string, mode: 'script' | 'call' | 'driver'): s
     return `Your function needs ${m[1] === '1' ? 'another argument' : `${m[1]} more arguments`}. Type them in step ② (the box after the function name).`
   if ((m = raw.match(/takes (\d+) positional arguments? but (\d+) (were|was) given/)))
     return `Too many arguments: the function takes ${Number(m[1]) - 1} but got ${Number(m[2]) - 1}. Check the commas in step ②.`
+  if ((m = raw.match(/'(int|float|str|list|NoneType)' object has no attribute '(left|right|val|next)'/)) && m[1] !== 'NoneType')
+    return m[2] === 'next'
+      ? `Your function expected a linked list but got ${article(m[1])}. Pass a ListNode in step ② with linked([1, 2, 3]).`
+      : `Your function expected a tree but got ${article(m[1])}. Pass a TreeNode in step ② with tree([...]), e.g. tree([5, 1, 4, None, None, 3, 6]).`
+  if ((m = raw.match(/'NoneType' object has no attribute '(left|right|val|next)'/)))
+    return `Your code used .${m[1]} on None: a node that doesn't exist (an empty child, or the end of the list). Add a check like "if node:" before it. Step back to see which node was None.`
   if ((m = raw.match(/NameError: name '(\w+)' is not defined/)))
     return m[1] === 'Solution'
       ? 'There is no class Solution in your code. For a plain program, switch step ② to "Run as a script".'
