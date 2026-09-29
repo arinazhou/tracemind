@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Each signed-in user can read and write only their own progress records:
+//   users/{uid}/progress/{problemNumber}
+// Everything else is closed. Record shape and sizes are validated so a
+// client can't store arbitrary data.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/progress/{num} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && num.matches('^[0-9]{1,5}$') && validEntry(request.resource.data);
+    }
+  }
+
+  function isOwner(uid) {
+    return request.auth != null && request.auth.uid == uid;
+  }
+
+  function validEntry(d) {
+    return d.keys().hasOnly(['status', 'notes', 'solution', 'solvedAt', 'updatedAt', 'solvedCount'])
+      && d.status in ['todo', 'learning', 'solved', 'review']
+      && d.notes is string && d.notes.size() <= 100000
+      && d.solution is string && d.solution.size() <= 50000
+      && d.solvedAt is string && (d.solvedAt == '' || d.solvedAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
+      && d.updatedAt is int
+      && d.solvedCount is int && d.solvedCount >= 0;
+  }
+}

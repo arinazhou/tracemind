@@ -521,3 +521,25 @@ details.table-view td, details.table-view th { padding: 2px 10px; text-align: ri
 /* a practice-list row the search jumped to */
 tr.focused td { background: var(--match-bg); transition: background 1.2s ease; }
 tr.focused-fade td { background: transparent; }
+
+/* ---------- accounts ---------- */
+.account-signin { width: calc(100% - 20px); margin: 22px 10px 0; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--ink-2); font-size: 13px; text-align: left; line-height: 1.4; }
+.account-signin:hover { background: #e6e0fb; }
+.account-signin b { color: var(--accent); }
+.account { margin: 22px 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); display: grid; gap: 6px; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--active-bg); color: var(--active-fg); font-weight: 800; font-size: 12px; object-fit: cover; flex: none; }
+.account-name { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-notice { font-size: 12px; color: var(--done-fg); background: var(--done-bg); border-radius: 8px; padding: 4px 8px; }
+.account-actions { display: flex; gap: 6px; font-size: 12px; color: var(--ink-3); }
+.account-actions button { border: none; background: none; padding: 0; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.account-actions button:hover { color: var(--accent); text-decoration: underline; }
+.auth-panel { position: relative; width: min(420px, 100%); padding: 24px 26px; box-shadow: 0 20px 60px rgba(40, 30, 20, .25); }
+.auth-panel h2 { font-size: 21px; font-weight: 800; }
+.auth-close { position: absolute; right: 14px; top: 10px; border: none; background: none; font-size: 24px; color: var(--ink-3); }
+.google-btn { width: 100%; justify-content: center; gap: 10px; padding: 10px; font-size: 14.5px; }
+.auth-or { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; font-size: 12px; color: var(--ink-3); }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.auth-form { display: grid; gap: 8px; }
+.auth-form input { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14px; background: var(--surface); }
+.auth-form input:focus { outline: 2px solid var(--active-bg); border-color: var(--active-fg); }
+.auth-form .btn { justify-content: center; padding: 10px; }

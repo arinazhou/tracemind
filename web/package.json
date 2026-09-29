@@ -7,13 +7,16 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "check": "esbuild scripts/check-tracers.ts --bundle --platform=node --log-level=warning --outfile=node_modules/.cache/check-tracers.cjs && node node_modules/.cache/check-tracers.cjs"
+    "check": "esbuild scripts/check-tracers.ts --bundle --platform=node --log-level=warning --outfile=node_modules/.cache/check-tracers.cjs && node node_modules/.cache/check-tracers.cjs",
+    "test:rules": "cd .. && npx -y firebase-tools@15 emulators:exec --only firestore --project demo-tracemind \"node web/scripts/test-rules.mjs\""
   },
   "dependencies": {
+    "firebase": "^12.19.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",

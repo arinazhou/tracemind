@@ -39,6 +39,13 @@ jobs:
           npm ci
           npx tsc -p .
           npm run check
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Firestore security rules (each user can only touch their own records)
+        working-directory: web
+        run: npm run test:rules
 
   deploy:
     needs: test

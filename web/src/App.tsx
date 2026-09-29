@@ -1,7 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react'
+import { AccountBox } from './components/Account'
 import { BackupButtons } from './components/BackupButtons'
 import { SearchBox } from './components/SearchBox'
-import { connect, reconnectIfOffline, useProgress, useSync } from './data/progress'
+import { connect, reconnectIfOffline, useProgress, useSync, useUser } from './data/progress'
 import { DATA_STRUCTURES, PATTERNS, patternProblems } from './learn'
 import { DSPage } from './pages/DSPage'
 import { Home } from './pages/Home'
@@ -35,6 +36,7 @@ export function App() {
   const hash = useHash()
   const progress = useProgress()
   const sync = useSync()
+  const user = useUser()
   const [path, query = ''] = hash.split('?')
   const params = new URLSearchParams(query)
   const [, kind, arg] = path.split('/')
@@ -100,8 +102,9 @@ export function App() {
           </a>
         ))}
 
+        <AccountBox />
         <button className={`sync sync-${sync}`} onClick={() => sync === 'offline' && connect()} title={sync === 'offline' ? 'Server not reachable. Click to retry.' : undefined}>
-          <i />{SYNC_LABEL[sync]}
+          <i />{user && sync === 'synced' ? 'Saved to your account' : user && sync === 'offline' ? 'Offline · will sync when back' : SYNC_LABEL[sync]}
         </button>
         <BackupButtons />
       </aside>

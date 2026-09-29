@@ -21,6 +21,7 @@ watch it run line by line.
 - [Learn: interview patterns](#learn-interview-patterns)
 - [Data structures: CS 225 reference](#data-structures-cs-225-reference)
 - [Tracker](#tracker)
+- [Accounts: sync across devices](#accounts-sync-across-devices)
 - [Run it locally](#run-it-locally)
 - [How it works](#how-it-works)
 
@@ -254,6 +255,24 @@ bottom of the sidebar to keep a copy or move to another computer.
 
 ---
 
+## Accounts: sync across devices
+
+Click **Sign in** at the bottom of the sidebar and use **Continue with Google** or an email and
+password. Your done ✓, dates, notes and solutions are then saved to your account and appear
+on every device, live. The first time you sign in, any progress already saved in that browser
+is moved into your account.
+
+- **Only you can see your records.** This is enforced by Firestore security rules
+  ([`firestore.rules`](firestore.rules)) on Google's servers, and tested in CI.
+- **Sign out** removes your records from that browser (safe on shared computers).
+- **Delete my data** (under your name in the sidebar) erases everything in your account.
+- Not signed in? Everything still works: progress is saved in your browser, with Back up / Restore.
+
+Setting up the Firebase project behind this takes about 5 minutes: see
+[`docs/FIREBASE_SETUP.md`](docs/FIREBASE_SETUP.md).
+
+---
+
 ## Run it locally
 
 Requires Python 3.11+ and Node 20+.
@@ -288,6 +307,8 @@ server/app/
   main.py, db.py        FastAPI + SQLite progress API for local use
 ```
 
+Accounts use Firebase Auth + Firestore (`web/src/cloud/`, rules in `firestore.rules`).
+
 Every push runs the full test suite in GitHub Actions and redeploys only if it passes:
 
 ```bash
@@ -295,6 +316,7 @@ Every push runs the full test suite in GitHub Actions and redeploys only if it p
                             #   (right answer, clean trace, analyzer agrees or admits doubt)
 cd web && npx tsc -p .      # typecheck
 cd web && npm run check     # every hand-built animation vs. the real Python solution
+cd web && npm run test:rules  # Firestore rules in the emulator: users can only reach their own data
 ```
 
 ## References

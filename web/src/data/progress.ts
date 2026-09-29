@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import type { CloudUser } from '../cloud/cloud'
+import { CLOUD_ENABLED } from '../cloud/config'
 
 export type Status = 'todo' | 'learning' | 'solved' | 'review'
 
@@ -20,8 +22,10 @@ export const today = () => {
 type State = Record<number, Entry>
 
 /**
- * connecting/synced/saving/offline: running with the FastAPI server (./dev.sh).
- * local: the hosted GitHub Pages build, where the browser is the only store.
+ * Where records live, in priority order:
+ *   1. signed in (Firebase): the account; connecting/synced/saving/offline describe it
+ *   2. the local FastAPI server (./dev.sh): same states
+ *   3. local: the hosted site signed out, where the browser is the only store
  */
 export type SyncState = 'connecting' | 'synced' | 'saving' | 'offline' | 'local'
 
@@ -35,7 +39,12 @@ const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((l) => l())
 
 let state: State = read(KEY, {})
-let sync: SyncState = HOSTED ? 'local' : 'connecting'
+let sync: SyncState = CLOUD_ENABLED ? 'connecting' : HOSTED ? 'local' : 'connecting'
+let user: CloudUser | null = null
+/** Problems copied from this browser into the account at the last sign-in (for a one-time notice). */
+let movedIn = 0
+const dirty = new Set<number>() // records not yet saved to the account
+let unwatch: (() => void) | null = null
 const inflight = new Map<number, ReturnType<typeof setTimeout>>()
 const pendingPatches = new Map<number, Partial<Entry>>()
 
@@ -47,9 +56,11 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+const storeKey = () => (user ? `${KEY}:${user.uid}` : KEY)
+
 function persist() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(state))
+    localStorage.setItem(storeKey(), JSON.stringify(state))
   } catch {
     // storage full or blocked: keep the in-memory copy
   }
@@ -66,8 +77,17 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+let watching = false
+
 export async function connect() {
-  if (HOSTED) return
+  if (CLOUD_ENABLED && !watching) {
+    watching = true
+    const cloud = await import('../cloud/cloud')
+    cloud.watchUser((u) => { (u ? onSignIn(u) : onSignOut()).catch(() => setSync('offline')) })
+    return
+  }
+  if (user) return flushCloud()
+  if (HOSTED) { setSync('local'); return }
   try {
     if (Object.keys(state).length) {
       await api('/progress/import', { method: 'POST', body: JSON.stringify(state) })
@@ -79,6 +99,79 @@ export async function connect() {
     setSync('offline')
   }
 }
+
+async function onSignIn(u: CloudUser) {
+  const cloud = await import('../cloud/cloud')
+  const started = Date.now()
+  user = u
+  setSync('connecting')
+  const remote = await cloud.loadEntries(u.uid)
+  // move this browser's signed-out progress into the account (newer edit wins)
+  const local: State = read(KEY, {})
+  const merged: State = { ...remote }
+  const uploads: number[] = []
+  for (const [k, e] of Object.entries(local)) {
+    const num = Number(k)
+    if (!remote[num] || (e.updatedAt ?? 0) > (remote[num].updatedAt ?? 0)) {
+      merged[num] = { ...blankEntry(), ...e }
+      uploads.push(num)
+    }
+  }
+  await Promise.all(uploads.map((n) => cloud.saveEntry(u.uid, n, merged[n])))
+  movedIn = uploads.length
+  // edits made while the account was loading are newer than anything above: keep them
+  for (const [k, e] of Object.entries(state)) {
+    if ((e.updatedAt ?? 0) >= started) { merged[Number(k)] = e; dirty.add(Number(k)) }
+  }
+  try { localStorage.removeItem(KEY) } catch { /* ignore */ }
+  state = merged
+  persist()
+  setSync('synced')
+  if (dirty.size) flushCloud()
+  // live: edits made on another device appear here (unsaved local edits win)
+  unwatch?.()
+  unwatch = await cloud.watchEntries(u.uid, (num, e) => {
+    if (!user || user.uid !== u.uid || dirty.has(num)) return
+    const mine = state[num]
+    if (e === null) { if (mine) { const next = { ...state }; delete next[num]; state = next } }
+    else if (!mine || (e.updatedAt ?? 0) > (mine.updatedAt ?? 0)) state = { ...state, [num]: { ...blankEntry(), ...e } }
+    else return
+    persist()
+    emit()
+  })
+}
+
+async function onSignOut() {
+  const was = user
+  unwatch?.()
+  unwatch = null
+  user = null
+  dirty.clear()
+  // shared computers: don't leave the account's records behind in this browser
+  if (was) try { localStorage.removeItem(`${KEY}:${was.uid}`) } catch { /* ignore */ }
+  state = read(KEY, {})
+  emit()
+  if (HOSTED) setSync('local')
+  else { setSync('connecting'); await connect() }
+}
+
+async function flushCloud() {
+  if (!user || !dirty.size) { if (user && sync !== 'offline') setSync('synced'); return }
+  const cloud = await import('../cloud/cloud')
+  const uid = user.uid
+  const batch = [...dirty]
+  dirty.clear()
+  setSync('saving')
+  try {
+    await Promise.all(batch.filter((n) => state[n]).map((n) => cloud.saveEntry(uid, n, state[n])))
+    if (!dirty.size) setSync('synced')
+  } catch {
+    batch.forEach((n) => dirty.add(n)) // retried on reconnect / next edit
+    setSync('offline')
+  }
+}
+
+let cloudTimer: ReturnType<typeof setTimeout> | undefined
 
 export function reconnectIfOffline() {
   if (sync === 'offline') connect()
@@ -99,6 +192,15 @@ export function update(num: number, patch: Partial<Pick<Entry, 'status' | 'notes
   }
   persist()
   emit()
+  if (user) {
+    // status clicks save right away; typing is batched
+    dirty.add(num)
+    clearTimeout(cloudTimer)
+    const typing = patch.notes !== undefined || patch.solution !== undefined
+    cloudTimer = setTimeout(flushCloud, typing ? 800 : 0)
+    if (sync !== 'offline') setSync('saving')
+    return
+  }
   if (HOSTED) return
 
   // Status clicks save immediately; typing (notes/solution) is debounced.
@@ -140,6 +242,28 @@ export function useSync(): SyncState {
   return useSyncExternalStore(subscribe, () => sync)
 }
 
+export function useUser(): CloudUser | null {
+  return useSyncExternalStore(subscribe, () => user)
+}
+
+/** How many problems the last sign-in moved from this browser into the account; reading it clears it. */
+export function takeMovedIn(): number {
+  const n = movedIn
+  movedIn = 0
+  return n
+}
+
+/** "Delete my data": wipe the account's records (and this browser's copy). */
+export async function deleteCloudData() {
+  if (!user) return
+  const cloud = await import('../cloud/cloud')
+  await cloud.deleteAllEntries(user.uid)
+  dirty.clear()
+  state = {}
+  persist()
+  emit()
+}
+
 // ---------------------------------------------------------------- backup
 
 export function exportBackup(): string {
@@ -156,12 +280,14 @@ export function importBackup(text: string): number {
     if (!next[+num] || (e.updatedAt ?? 0) > next[+num].updatedAt) {
       next[+num] = { ...blankEntry(), ...e }
       merged++
+      if (user) dirty.add(+num)
     }
   }
   state = next
   persist()
   emit()
-  if (!HOSTED) connect() // push merged entries to the server
+  if (user) flushCloud() // upload restored records to the account
+  else if (!HOSTED) connect() // push merged entries to the server
   return merged
 }
 
