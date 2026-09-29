@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { BackupButtons } from './components/BackupButtons'
+import { SearchBox } from './components/SearchBox'
 import { connect, reconnectIfOffline, useProgress, useSync } from './data/progress'
 import { DATA_STRUCTURES, PATTERNS, patternProblems } from './learn'
 import { DSPage } from './pages/DSPage'
@@ -53,7 +54,7 @@ export function App() {
   }, [kind, arg])
 
   let page = <Home />
-  if (kind === 'learn' && arg) page = <PatternPage id={arg} />
+  if (kind === 'learn' && arg) page = <PatternPage id={arg} focus={Number(params.get('focus')) || undefined} />
   if (kind === 'ds' && arg) page = <DSPage id={arg} />
   if (kind === 'lab' || kind === 'visualize') page = <LabPage />
   if (kind === 'tracker') page = <TrackerPage />
@@ -71,6 +72,7 @@ export function App() {
           </span>
           <span>Tracemind<span className="brand-sub">see your code think</span></span>
         </a>
+        <SearchBox />
         <div className="nav-top">
           <a href="#/" className={`nav-item${!kind ? ' on' : ''}`}>Home</a>
           <a href="#/visualize" className={`nav-item${kind === 'lab' || kind === 'visualize' ? ' on' : ''}`}>▶ Visualize my code</a>

@@ -10,6 +10,7 @@ watch it run line by line.
 ![The Code Visualizer stepping through a bubble sort](docs/visualizer.gif)
 
 - [What's inside](#whats-inside)
+- [Search: find any problem's topic](#search-find-any-problems-topic)
 - [Visualize your own code: step-by-step guide](#visualize-your-own-code-step-by-step-guide)
   - [1. A normal Python program](#1-a-normal-python-program)
   - [2. A LeetCode solution](#2-a-leetcode-solution)
@@ -35,6 +36,26 @@ watch it run line by line.
 | **Data structures · CS 225** | Short reference pages (arrays, linked lists, trees, heaps, hashing, disjoint sets, graphs…) with links to CS 225's **annotated lecture notes**. |
 | **▶ Visualize my code** | Paste *any* Python that runs, then step through it line by line and get its Big-O. |
 | **✓ Tracker** | Done ✓, the date you finished, a one-line note, and a link to each LeetCode problem. |
+| **🔍 Search** | Type a problem number or name and jump straight to the topic that teaches it. |
+
+---
+
+## Search: find any problem's topic
+
+Click **🔍 Search problems…** at the top of the sidebar, or press <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd>
+(or <kbd>/</kbd>) on any page. Type a problem **number** (`207`), part of its **title**
+(`longest substring`, any word order), a **nickname** (`3sum`, `lru`, `bst`, `lca`), or an
+**algorithm** (`dijkstra`, `kahn`, `avl`). Small typos are fine.
+
+Each result shows the problem's difficulty, a ✓ if you've done it, and **the topic it belongs to**:
+
+- <kbd>Enter</kbd> (or click) opens **the topic lesson**, scrolled to that problem with it highlighted in the practice list
+- <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd> opens the problem's own page (animation, your solution, notes)
+- <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> close
+
+Searching for a problem that isn't in the catalog (e.g. *Meeting Rooms III*) shows the closest
+problems that are (*Meeting Rooms*, *Meeting Rooms II* → **Intervals**), because their topic is
+usually the one to study, plus a link to search LeetCode.
 
 ---
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ANIMATIONS } from '../../animations'
 import { PROBLEMS, leetcodeUrl } from '../../data/catalog'
 import { useProgress } from '../../data/progress'
@@ -7,9 +7,21 @@ import { DoneToggle } from '../DoneToggle'
 export interface PracticeItem { num: number; template: string; hint: string }
 export interface Stage { title: string; goal?: string; items: PracticeItem[] }
 
-export function PracticeList({ stages }: { stages: Stage[] }) {
+export function PracticeList({ stages, focus }: { stages: Stage[]; focus?: number }) {
   const progress = useProgress()
   const [shown, setShown] = useState<Record<number, boolean>>({})
+  const [flash, setFlash] = useState<number | null>(null)
+
+  // arriving from search: scroll to the problem and highlight it for a moment
+  useEffect(() => {
+    if (!focus) return
+    const toRow = setTimeout(() => {
+      document.querySelector(`tr[data-num="${focus}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlash(focus)
+    }, 80) // after the router's scroll-to-top
+    const fade = setTimeout(() => setFlash(null), 2800)
+    return () => { clearTimeout(toRow); clearTimeout(fade) }
+  }, [focus])
   const all = stages.flatMap((s) => s.items)
   const done = all.filter((i) => progress[i.num]?.status === 'solved').length
 
@@ -30,7 +42,7 @@ export function PracticeList({ stages }: { stages: Stage[] }) {
                 if (!found) return null
                 const p = found.problem
                 return (
-                  <tr key={it.num}>
+                  <tr key={it.num} data-num={it.num} className={flash === it.num ? 'focused' : undefined}>
                     <td><DoneToggle num={p.num} /></td>
                     <td className="num">{p.num}</td>
                     <td className="title-cell">

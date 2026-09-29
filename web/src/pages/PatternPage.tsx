@@ -8,7 +8,7 @@ import { useProgress } from '../data/progress'
 import { DATA_STRUCTURES, EXAMPLES, PATTERNS, PROBLEMS, patternById, patternProblems } from '../learn'
 import { catColors } from '../theme'
 
-export function PatternPage({ id }: { id: string }) {
+export function PatternPage({ id, focus }: { id: string; focus?: number }) {
   const p = patternById(id)
   const progress = useProgress()
   const [open, setOpen] = useState<string | null>(null)
@@ -96,7 +96,7 @@ export function PatternPage({ id }: { id: string }) {
       <section className="lesson-section">
         <h2><span className="sec-n">6</span>Practice</h2>
         <p>In order. Name the template before you code; open a hint only after you're stuck. Check a problem off when LeetCode accepts it.</p>
-        <PracticeList stages={p.stages.map((s) => ({ title: s.title, items: s.items.map(([num, , , hint, tag]) => ({ num, hint, template: tag ?? '' })) }))} />
+        <PracticeList focus={focus} stages={p.stages.map((s) => ({ title: s.title, items: s.items.map(([num, , , hint, tag]) => ({ num, hint, template: tag ?? '' })) }))} />
       </section>
 
       <nav className="lesson-nav">
